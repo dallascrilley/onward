@@ -1,0 +1,316 @@
+{
+  "$schema": "workplan.v2",
+  "metadata": {
+    "generated": "2025-12-21",
+    "focus_area": "Full Codebase Refactoring",
+    "project": "redbull",
+    "source": "/brainstorm:refactors"
+  },
+  "epics": [
+    {
+      "id": "EPIC-001",
+      "title": "Code Organization & Readability",
+      "description": "Extract constants, consolidate operations, and improve code structure",
+      "tasks": ["REF-001", "REF-002", "REF-006"]
+    },
+    {
+      "id": "EPIC-002",
+      "title": "Developer Experience & Quality",
+      "description": "Add linting, fix naming inconsistencies, and improve maintainability",
+      "tasks": ["REF-004", "REF-005", "REF-009", "REF-010"]
+    },
+    {
+      "id": "EPIC-003",
+      "title": "Architectural Improvements",
+      "description": "Modularize throttling, create prompt templates, and build shared utilities",
+      "tasks": ["REF-003", "REF-007", "REF-008"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "REF-001",
+      "title": "Extract Configuration Constants to Script Header",
+      "category": "Conventional",
+      "impact": 4,
+      "effort": 1,
+      "risk": 1,
+      "priority_score": 4.0,
+      "description": "Move magic numbers to named constants at script top for clarity and tunability",
+      "targets": [
+        "hooks/claude-judge-continuation.sh:40 (300 seconds)",
+        "hooks/claude-judge-continuation.sh:45 (3 max continuations)",
+        "hooks/claude-judge-continuation.sh:60 (10 transcript lines)"
+      ],
+      "acceptance_criteria": [
+        "Constants defined at script header with descriptive names",
+        "All magic numbers replaced with constant references",
+        "Eval suite passes 5/5 on all scenarios"
+      ],
+      "test_plan": "./test/evals/run-evals.sh",
+      "implementation_steps": [
+        "Add constants block after shebang: MAX_CONTINUATIONS, THROTTLE_WINDOW_SECONDS, TRANSCRIPT_CONTEXT_LINES",
+        "Replace inline values with constant references",
+        "Run eval suite to verify no behavior change"
+      ]
+    },
+    {
+      "id": "REF-002",
+      "title": "Consolidate jq Invocations into Single Parse Call",
+      "category": "Conventional",
+      "impact": 4,
+      "effort": 2,
+      "risk": 2,
+      "priority_score": 2.0,
+      "description": "Batch JSON parsing into single jq call with multiple outputs to reduce process spawning",
+      "targets": [
+        "hooks/claude-judge-continuation.sh:18-22 (5 separate jq calls for EVENT parsing)"
+      ],
+      "acceptance_criteria": [
+        "Single jq call extracts all EVENT fields",
+        "Process count reduced from 5+ to 1 for initial parsing",
+        "Eval suite passes 5/5 on all scenarios"
+      ],
+      "test_plan": "./test/evals/run-evals.sh",
+      "implementation_steps": [
+        "Create single jq expression with multiple outputs: .stop_hook_active, .transcript_path, .session_id",
+        "Use read command to capture multiple values",
+        "Remove redundant jq calls",
+        "Verify with eval suite"
+      ]
+    },
+    {
+      "id": "REF-003",
+      "title": "Extract Throttle Logic to Separate Module",
+      "category": "Creative",
+      "impact": 4,
+      "effort": 2,
+      "risk": 2,
+      "priority_score": 2.0,
+      "description": "Separate throttle.sh module with read/write/check functions for better testability",
+      "targets": [
+        "hooks/claude-judge-continuation.sh:26-50 (throttle check logic)",
+        "hooks/claude-judge-continuation.sh:130-137 (throttle update logic)",
+        "hooks/claude-judge-continuation.sh:146 (throttle cleanup)"
+      ],
+      "acceptance_criteria": [
+        "lib/throttle.sh created with throttle_check, throttle_update, throttle_clear functions",
+        "Main script sources throttle module",
+        "Unit tests added for throttle functions",
+        "Eval suite passes 5/5 on all scenarios"
+      ],
+      "test_plan": "./test/evals/run-evals.sh && ./test/unit/throttle.test.sh",
+      "implementation_steps": [
+        "Create lib/ directory",
+        "Extract throttle logic to lib/throttle.sh with functions",
+        "Add source statement to main script",
+        "Create unit tests for throttle functions",
+        "Verify integration with eval suite"
+      ]
+    },
+    {
+      "id": "REF-004",
+      "title": "Add Shellcheck Linting with CI Integration",
+      "category": "Conventional",
+      "impact": 3,
+      "effort": 1,
+      "risk": 1,
+      "priority_score": 3.0,
+      "description": "Configure shellcheck for all bash scripts and add to quality gates",
+      "targets": [
+        "hooks/*.sh",
+        "test/**/*.sh",
+        ".shellcheckrc (new file)"
+      ],
+      "acceptance_criteria": [
+        ".shellcheckrc created with project-appropriate rules",
+        "All scripts pass shellcheck without errors",
+        "AGENTS.md lint command updated",
+        "Suppressions documented for intentional patterns"
+      ],
+      "test_plan": "shellcheck hooks/*.sh test/**/*.sh",
+      "implementation_steps": [
+        "Create .shellcheckrc with baseline rules",
+        "Run shellcheck and fix violations",
+        "Add inline suppressions for intentional patterns",
+        "Update AGENTS.md lint command"
+      ]
+    },
+    {
+      "id": "REF-005",
+      "title": "Fix Plugin Name Inconsistency",
+      "category": "Conventional",
+      "impact": 2,
+      "effort": 1,
+      "risk": 1,
+      "priority_score": 2.0,
+      "description": "Rename plugin from 'double-shot-latte' to 'redbull' for consistency with repo name",
+      "targets": [
+        ".claude-plugin/plugin.json (name field)",
+        "hooks/claude-judge-continuation.sh:69 (CLAUDE_WORK_DIR)",
+        "AGENTS.md (settings reference)",
+        "test/test-working-directory.sh:9"
+      ],
+      "acceptance_criteria": [
+        "plugin.json name is 'redbull'",
+        "All internal references updated",
+        "Working directory uses ~/.claude/redbull",
+        "Tests updated and passing"
+      ],
+      "test_plan": "./test/evals/run-evals.sh && ./test/test-working-directory.sh",
+      "implementation_steps": [
+        "Update plugin.json name field",
+        "Update CLAUDE_WORK_DIR in main script",
+        "Update test references",
+        "Update AGENTS.md documentation",
+        "Run all tests"
+      ]
+    },
+    {
+      "id": "REF-006",
+      "title": "Extract Decision Output Formatting Function",
+      "category": "Conventional",
+      "impact": 3,
+      "effort": 1,
+      "risk": 1,
+      "priority_score": 3.0,
+      "description": "Create output_decision function to deduplicate JSON output formatting",
+      "targets": [
+        "hooks/claude-judge-continuation.sh:10 (approve in judge mode)",
+        "hooks/claude-judge-continuation.sh:46 (approve max cycles)",
+        "hooks/claude-judge-continuation.sh:54 (approve no transcript)",
+        "hooks/claude-judge-continuation.sh:110-111 (approve eval failed)",
+        "hooks/claude-judge-continuation.sh:119-120 (approve parse failed)",
+        "hooks/claude-judge-continuation.sh:140-152 (block/approve final)"
+      ],
+      "acceptance_criteria": [
+        "output_decision function created with decision and reason parameters",
+        "All echo/jq output statements replaced with function calls",
+        "Consistent JSON formatting across all exit paths",
+        "Eval suite passes 5/5 on all scenarios"
+      ],
+      "test_plan": "./test/evals/run-evals.sh",
+      "implementation_steps": [
+        "Define output_decision function near script top",
+        "Replace all decision output patterns with function calls",
+        "Verify JSON output format consistency",
+        "Run eval suite"
+      ]
+    },
+    {
+      "id": "REF-007",
+      "title": "Create Evaluation Prompt Template System",
+      "category": "Creative",
+      "impact": 4,
+      "effort": 3,
+      "risk": 3,
+      "priority_score": 1.33,
+      "description": "Move evaluation prompt to external template file for easier iteration and A/B testing",
+      "targets": [
+        "hooks/claude-judge-continuation.sh:73-101 (EVALUATION_PROMPT)",
+        "prompts/ (new directory)",
+        "prompts/default.txt (new file)"
+      ],
+      "acceptance_criteria": [
+        "prompts/ directory created with default.txt",
+        "Script reads prompt from template file",
+        "Environment variable allows prompt override",
+        "Eval suite passes 5/5 on all scenarios"
+      ],
+      "test_plan": "./test/evals/run-evals.sh",
+      "implementation_steps": [
+        "Create prompts/ directory",
+        "Extract EVALUATION_PROMPT to prompts/default.txt",
+        "Add template reading logic with fallback",
+        "Add REDBULL_PROMPT_FILE env var support",
+        "Verify with eval suite"
+      ]
+    },
+    {
+      "id": "REF-008",
+      "title": "Implement Architectural Separation (Hook Library)",
+      "category": "Moonshot",
+      "impact": 5,
+      "effort": 4,
+      "risk": 3,
+      "priority_score": 1.25,
+      "description": "Create shared hook library with JSON helpers, validation, and common patterns",
+      "targets": [
+        "lib/hook-utils.sh (new file)",
+        "lib/json-helpers.sh (new file)",
+        "hooks/claude-judge-continuation.sh (refactor to use lib)"
+      ],
+      "acceptance_criteria": [
+        "lib/ directory with reusable modules",
+        "JSON parsing/output helpers extracted",
+        "Input validation helpers extracted",
+        "Main script significantly simplified",
+        "Eval suite passes 5/5 on all scenarios"
+      ],
+      "test_plan": "./test/evals/run-evals.sh && ./test/unit/lib.test.sh",
+      "implementation_steps": [
+        "Create lib/ directory structure",
+        "Extract JSON helpers (parse_event, output_json)",
+        "Extract validation helpers (validate_input, check_file)",
+        "Refactor main script to source and use library",
+        "Add unit tests for library functions",
+        "Verify integration"
+      ]
+    },
+    {
+      "id": "REF-009",
+      "title": "Add Performance Timing Instrumentation",
+      "category": "Conventional",
+      "impact": 3,
+      "effort": 2,
+      "risk": 1,
+      "priority_score": 1.5,
+      "description": "Track and optionally log hook execution time for performance monitoring",
+      "targets": [
+        "hooks/claude-judge-continuation.sh (add timing)"
+      ],
+      "acceptance_criteria": [
+        "Start time captured at script entry",
+        "Duration calculated at all exit points",
+        "Debug logging available via REDBULL_DEBUG=1",
+        "Timing data included in decision JSON when debug enabled",
+        "Eval suite passes 5/5 on all scenarios"
+      ],
+      "test_plan": "./test/evals/run-evals.sh",
+      "implementation_steps": [
+        "Add HOOK_START_TIME capture at script start",
+        "Add duration calculation helper function",
+        "Include timing in debug output when REDBULL_DEBUG=1",
+        "Optionally add timing to JSON output",
+        "Verify no performance impact without debug"
+      ]
+    },
+    {
+      "id": "REF-010",
+      "title": "Extract Input Validation Functions",
+      "category": "Conventional",
+      "impact": 3,
+      "effort": 2,
+      "risk": 2,
+      "priority_score": 1.5,
+      "description": "Separate input validation into reusable functions for better testability",
+      "targets": [
+        "hooks/claude-judge-continuation.sh:53-56 (transcript validation)"
+      ],
+      "acceptance_criteria": [
+        "validate_transcript function created",
+        "validate_event function created",
+        "Clear error messages for each validation failure",
+        "Unit tests for validation functions",
+        "Eval suite passes 5/5 on all scenarios"
+      ],
+      "test_plan": "./test/evals/run-evals.sh && ./test/unit/validation.test.sh",
+      "implementation_steps": [
+        "Create validate_transcript function",
+        "Create validate_event function",
+        "Replace inline validation with function calls",
+        "Add unit tests for edge cases",
+        "Verify with eval suite"
+      ]
+    }
+  ]
+}

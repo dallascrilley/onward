@@ -1,0 +1,430 @@
+{
+  "schema_version": "workplan.v2",
+  "generated_at": "2025-12-21T21:20:16Z",
+  "source": {
+    "focus_area": "focus_area",
+    "prompt_id": "focus-area-empty-project-wide",
+    "generator": "chatgpt",
+    "generator_version": "gpt-5-codex"
+  },
+  "focus_summary": {
+    "purpose": "Stop-hook plugin that decides whether Claude should continue by running a separate Claude evaluation on recent transcript context.",
+    "key_flows": [
+      "Stop hook receives event JSON on stdin",
+      "Parse transcript_path and session_id, sample recent transcript entries",
+      "Invoke claude with system prompt and JSON schema",
+      "Apply throttling rules and emit decision JSON"
+    ],
+    "constraints": [
+      "Hook input/output contract must remain stable",
+      "Cross-platform compatibility via run-hook.cmd and bash",
+      "No new runtime dependencies beyond bash, jq, and claude CLI",
+      "Behavioral parity required for existing eval scenarios"
+    ],
+    "risks_or_unknowns": [
+      "Prompt edits can shift classification behavior",
+      "LLM evaluation is non-deterministic across runs",
+      "Windows Git Bash path resolution may differ",
+      "Path drift between hooks and tests can hide failures",
+      "Focus area unspecified; treated as project-wide"
+    ]
+  },
+  "platform_defaults": {
+    "linear": {
+      "team_key": "DAL",
+      "project": { "id": null, "name": "DallasCrilleyMarTech/github-platform/" },
+      "labels": [],
+      "state": "Todo"
+    },
+    "github": {
+      "repo": "DallasCrilleyMarTech/github-platform",
+      "labels": [],
+      "assignees": [],
+      "milestone": null,
+      "project": null
+    }
+  },
+  "work_items": [
+    {
+      "id": "EPIC-01",
+      "kind": "epic",
+      "title": "Hook entrypoints and event parsing hardening",
+      "order": 1,
+      "relations": { "children": ["REF-001", "REF-002", "REF-003"], "depends_on": [] },
+      "labels": ["epic"],
+      "content": {
+        "summary": "Stabilize hook entrypoints, pathing, and event parsing to remove brittle coupling.",
+        "problem": "Path drift and repeated parsing create fragile behavior and complicate debugging.",
+        "scope": "hooks/claude-judge-continuation.sh, hooks/run-hook.cmd, hooks/hooks.json, test/evals/run-evals.sh",
+        "success_criteria": ["Paths are centralized and consistent across hooks and tests", "Event parsing is single-pass and validated", "Hook decisions remain unchanged"],
+        "notes": "Keep behavior identical and avoid new dependencies."
+      },
+      "sync": {
+        "dedupe_key": "focus_area:EPIC-01",
+        "external_ids": {
+          "linear": { "id": null, "identifier": null },
+          "github": { "number": null, "node_id": null }
+        }
+      },
+      "platform_overrides": {},
+      "rendered": { "linear_description_md": null, "github_body_md": null }
+    },
+    {
+      "id": "EPIC-02",
+      "kind": "epic",
+      "title": "Decision prompt and engine maintainability",
+      "order": 2,
+      "relations": { "children": ["REF-004", "REF-007", "REF-008"], "depends_on": [] },
+      "labels": ["epic"],
+      "content": {
+        "summary": "Make prompt logic and decision flow easier to evolve without behavior drift.",
+        "problem": "Large inline prompt and opaque decision flow make changes risky and hard to validate.",
+        "scope": "hooks/claude-judge-continuation.sh and new prompt/engine helpers",
+        "success_criteria": ["Prompt updates are versioned and testable", "Decision trace is optional and non-invasive", "No behavior changes in existing evals"],
+        "notes": "Maintain the hook contract and keep default behavior identical."
+      },
+      "sync": {
+        "dedupe_key": "focus_area:EPIC-02",
+        "external_ids": {
+          "linear": { "id": null, "identifier": null },
+          "github": { "number": null, "node_id": null }
+        }
+      },
+      "platform_overrides": {},
+      "rendered": { "linear_description_md": null, "github_body_md": null }
+    },
+    {
+      "id": "EPIC-03",
+      "kind": "epic",
+      "title": "Eval harness and scenario quality",
+      "order": 3,
+      "relations": { "children": ["REF-005", "REF-006"], "depends_on": [] },
+      "labels": ["epic"],
+      "content": {
+        "summary": "Improve test harness reliability and reduce duplication across scripts.",
+        "problem": "Eval scripts duplicate logic and lack schema validation, making tests brittle.",
+        "scope": "test/evals/run-evals.sh, test/test-working-directory.sh, test/evals/scenarios",
+        "success_criteria": ["Shared helpers reduce duplication", "Scenario validation fails fast", "Existing tests pass unchanged"],
+        "notes": "Keep test output stable where possible."
+      },
+      "sync": {
+        "dedupe_key": "focus_area:EPIC-03",
+        "external_ids": {
+          "linear": { "id": null, "identifier": null },
+          "github": { "number": null, "node_id": null }
+        }
+      },
+      "platform_overrides": {},
+      "rendered": { "linear_description_md": null, "github_body_md": null }
+    },
+    {
+      "id": "REF-001",
+      "kind": "improvement",
+      "title": "Normalize hook script paths and root resolution across hooks/tests",
+      "order": 4,
+      "category": "Conventional",
+      "type": "refactor",
+      "area": "infra",
+      "owner_role": "Fullstack",
+      "scores": { "impact": 5, "effort": 1, "expertise": 2, "risk": 1, "novelty": 1 },
+      "priority_score": 5.00,
+      "relations": { "parent": "EPIC-01", "depends_on": [] },
+      "targets": ["hooks/claude-judge-continuation.sh", "hooks/run-hook.cmd", "hooks/hooks.json", "test/evals/run-evals.sh"],
+      "search_tokens": ["HOOK_SCRIPT", "run-hook.cmd", "claude-judge-continuation.sh", "scripts/claude-judge-continuation.sh", "CLAUDE_PLUGIN_ROOT"],
+      "content": {
+        "summary": "Create a single source-of-truth for the hook script path and use it in hooks and tests.",
+        "current_state": "Tests reference a scripts/ path while the hook script lives in hooks/, and path resolution is duplicated in multiple scripts.",
+        "expected_improvements": ["Eliminates path drift", "Reduces brittle coupling between hooks and tests", "Simplifies future moves or renames"],
+        "implementation_steps": ["Identify all hook script path references in hooks and tests", "Introduce a shared path definition (env var or sourced helper)", "Update hooks/hooks.json and test scripts to use the shared path", "Verify run-hook.cmd remains cross-platform compatible"],
+        "acceptance_criteria": ["- [ ] Hook and tests resolve the same script path", "- [ ] Hook output schema unchanged (no behavior changes)", "- [ ] Existing eval scenarios pass with identical decisions"],
+        "test_plan": ["Run ./test/evals/run-evals.sh", "Run ./test/test-working-directory.sh"],
+        "risk_mitigation": "Keep a fallback to the current path during refactor and compare eval outputs before and after.",
+        "experiment": { "category": "none", "small_experiment": null, "success_metric": null, "rollback_plan": null }
+      },
+      "labels": [],
+      "sync": {
+        "dedupe_key": "focus_area:REF-001",
+        "external_ids": {
+          "linear": { "id": null, "identifier": null },
+          "github": { "number": null, "node_id": null }
+        }
+      },
+      "platform_overrides": {},
+      "rendered": { "linear_description_md": null, "github_body_md": null }
+    },
+    {
+      "id": "REF-002",
+      "kind": "improvement",
+      "title": "Consolidate hook event parsing and validation into a single jq pass",
+      "order": 5,
+      "category": "Conventional",
+      "type": "refactor",
+      "area": "infra",
+      "owner_role": "Fullstack",
+      "scores": { "impact": 4, "effort": 2, "expertise": 2, "risk": 1, "novelty": 1 },
+      "priority_score": 2.00,
+      "relations": { "parent": "EPIC-01", "depends_on": [] },
+      "targets": ["hooks/claude-judge-continuation.sh"],
+      "search_tokens": ["EVENT=", "jq -r", "stop_hook_active", "transcript_path", "session_id"],
+      "content": {
+        "summary": "Parse event fields once with validation and defaults to reduce repeated jq calls.",
+        "current_state": "The hook uses multiple jq invocations on the same event JSON without schema validation, increasing fragility.",
+        "expected_improvements": ["Simpler parsing logic", "Fewer failure points", "Clearer defaults and validation"],
+        "implementation_steps": ["Define required fields and defaults for event JSON", "Use a single jq query to emit a tab-separated tuple", "Parse the tuple with read and validate each field", "Keep fallback behavior identical to current defaults"],
+        "acceptance_criteria": ["- [ ] Missing fields default exactly as before (no behavior changes)", "- [ ] Hook output schema unchanged", "- [ ] Existing eval scenarios pass with identical decisions"],
+        "test_plan": ["Run ./test/evals/run-evals.sh", "Run ./test/test-working-directory.sh"],
+        "risk_mitigation": "Add guardrails for empty or invalid fields and retain the current early-exit approvals.",
+        "experiment": { "category": "none", "small_experiment": null, "success_metric": null, "rollback_plan": null }
+      },
+      "labels": [],
+      "sync": {
+        "dedupe_key": "focus_area:REF-002",
+        "external_ids": {
+          "linear": { "id": null, "identifier": null },
+          "github": { "number": null, "node_id": null }
+        }
+      },
+      "platform_overrides": {},
+      "rendered": { "linear_description_md": null, "github_body_md": null }
+    },
+    {
+      "id": "REF-006",
+      "kind": "improvement",
+      "title": "Add scenario schema validation and normalization in eval runner",
+      "order": 6,
+      "category": "Conventional",
+      "type": "DX",
+      "area": "CI",
+      "owner_role": "Fullstack",
+      "scores": { "impact": 3, "effort": 2, "expertise": 2, "risk": 1, "novelty": 2 },
+      "priority_score": 1.50,
+      "relations": { "parent": "EPIC-03", "depends_on": [] },
+      "targets": ["test/evals/run-evals.sh", "test/evals/scenarios/*.json"],
+      "search_tokens": ["SCENARIOS_DIR", "expected_decision", "transcript", "jq -r '.name'"],
+      "content": {
+        "summary": "Validate scenario files before running evals and normalize transcripts to a consistent schema.",
+        "current_state": "Scenarios are not schema-validated, so malformed files fail late and with unclear errors.",
+        "expected_improvements": ["Faster feedback on bad fixtures", "Clearer failure messages", "More consistent scenario data"],
+        "implementation_steps": ["Define required scenario fields and constraints", "Add a validation step at the start of run-evals.sh", "Normalize transcript entries to strict role/content pairs", "Fail fast with actionable error messages"],
+        "acceptance_criteria": ["- [ ] Invalid scenario files fail fast with a clear message", "- [ ] Valid scenarios run unchanged (no behavior changes)", "- [ ] Existing eval scenarios pass with identical decisions"],
+        "test_plan": ["Run ./test/evals/run-evals.sh", "Add one intentionally invalid scenario locally to confirm validation (do not commit)"],
+        "risk_mitigation": "Ensure validation only rejects truly invalid inputs and keep normalization conservative.",
+        "experiment": { "category": "none", "small_experiment": null, "success_metric": null, "rollback_plan": null }
+      },
+      "labels": [],
+      "sync": {
+        "dedupe_key": "focus_area:REF-006",
+        "external_ids": {
+          "linear": { "id": null, "identifier": null },
+          "github": { "number": null, "node_id": null }
+        }
+      },
+      "platform_overrides": {},
+      "rendered": { "linear_description_md": null, "github_body_md": null }
+    },
+    {
+      "id": "REF-003",
+      "kind": "improvement",
+      "title": "Reduce hook process spawning and redundant reads",
+      "order": 7,
+      "category": "Conventional",
+      "type": "perf",
+      "area": "infra",
+      "owner_role": "Fullstack",
+      "scores": { "impact": 3, "effort": 2, "expertise": 3, "risk": 2, "novelty": 2 },
+      "priority_score": 1.50,
+      "relations": { "parent": "EPIC-01", "depends_on": [] },
+      "targets": ["hooks/claude-judge-continuation.sh"],
+      "search_tokens": ["THROTTLE_FILE", "cut -d:", "cat \"$THROTTLE_FILE\"", "tail -n 10", "jq -s"],
+      "content": {
+        "summary": "Batch jq reads and throttle parsing to reduce subprocess overhead in the hook.",
+        "current_state": "The hook spawns multiple jq and cut processes for the same inputs and reads the throttle file multiple times.",
+        "expected_improvements": ["Lower per-hook latency", "Reduced CPU overhead", "Cleaner parsing flow"],
+        "implementation_steps": ["Parse throttle file once using IFS and read", "Combine jq reads into fewer passes", "Cache computed values (e.g., time since last) in variables", "Keep all decisions and defaults identical"],
+        "acceptance_criteria": ["- [ ] Hook decisions unchanged (no behavior changes)", "- [ ] No additional subprocesses added", "- [ ] Existing eval scenarios pass with identical decisions"],
+        "test_plan": ["Run ./test/evals/run-evals.sh", "Run ./test/test-working-directory.sh"],
+        "risk_mitigation": "Keep intermediate values explicit and add guards for missing throttle data.",
+        "experiment": { "category": "none", "small_experiment": null, "success_metric": null, "rollback_plan": null }
+      },
+      "labels": [],
+      "sync": {
+        "dedupe_key": "focus_area:REF-003",
+        "external_ids": {
+          "linear": { "id": null, "identifier": null },
+          "github": { "number": null, "node_id": null }
+        }
+      },
+      "platform_overrides": {},
+      "rendered": { "linear_description_md": null, "github_body_md": null }
+    },
+    {
+      "id": "REF-005",
+      "kind": "improvement",
+      "title": "Introduce shared bash helper library for hooks/tests",
+      "order": 8,
+      "category": "Conventional",
+      "type": "refactor",
+      "area": "infra",
+      "owner_role": "Fullstack",
+      "scores": { "impact": 4, "effort": 3, "expertise": 3, "risk": 2, "novelty": 2 },
+      "priority_score": 1.33,
+      "relations": { "parent": "EPIC-03", "depends_on": [] },
+      "targets": ["hooks/claude-judge-continuation.sh", "test/evals/run-evals.sh", "test/test-working-directory.sh", "hooks/lib/common.sh"],
+      "search_tokens": ["SCRIPT_DIR=", "cleanup()", "trap cleanup", "jq -n", "PATH="],
+      "content": {
+        "summary": "Create a shared bash helper file for path resolution, temp handling, and logging.",
+        "current_state": "Scripts duplicate setup, temp dir handling, and JSON assembly logic.",
+        "expected_improvements": ["Less duplication across scripts", "Consistent error handling", "Simpler future changes"],
+        "implementation_steps": ["Identify shared patterns across hook and test scripts", "Create hooks/lib/common.sh with focused helpers", "Source the helper from scripts that need it", "Keep helpers small and single-purpose"],
+        "acceptance_criteria": ["- [ ] Shared helpers replace duplicated logic", "- [ ] No behavior changes in hook output", "- [ ] Existing eval scenarios pass with identical decisions"],
+        "test_plan": ["Run ./test/evals/run-evals.sh", "Run ./test/test-working-directory.sh"],
+        "risk_mitigation": "Scope helpers narrowly and avoid global side effects.",
+        "experiment": { "category": "none", "small_experiment": null, "success_metric": null, "rollback_plan": null }
+      },
+      "labels": [],
+      "sync": {
+        "dedupe_key": "focus_area:REF-005",
+        "external_ids": {
+          "linear": { "id": null, "identifier": null },
+          "github": { "number": null, "node_id": null }
+        }
+      },
+      "platform_overrides": {},
+      "rendered": { "linear_description_md": null, "github_body_md": null }
+    },
+    {
+      "id": "REF-004",
+      "kind": "improvement",
+      "title": "Externalize evaluation prompt and schema into versioned templates",
+      "order": 9,
+      "category": "Creative",
+      "type": "refactor",
+      "area": "infra",
+      "owner_role": "Fullstack",
+      "scores": { "impact": 3, "effort": 3, "expertise": 3, "risk": 2, "novelty": 4 },
+      "priority_score": 1.00,
+      "relations": { "parent": "EPIC-02", "depends_on": [] },
+      "targets": ["hooks/claude-judge-continuation.sh", "hooks/prompts/continuation-eval.txt", "hooks/prompts/schema.json"],
+      "search_tokens": ["EVALUATION_PROMPT", "JSON_SCHEMA", "SYSTEM_PROMPT"],
+      "content": {
+        "summary": "Move prompt and schema text to dedicated files and add a light snapshot check.",
+        "current_state": "Prompt and schema are inlined in the hook script, making edits error-prone and hard to review.",
+        "expected_improvements": ["Clear separation of prompt content from control flow", "Easier review of prompt diffs", "Lower risk of accidental prompt edits"],
+        "implementation_steps": ["Create prompt and schema files under hooks/prompts", "Load prompt content and schema into the hook at runtime", "Add a small snapshot comparison in tests or a lint step", "Document prompt versioning expectations"],
+        "acceptance_criteria": ["- [ ] Prompt content loaded from files without changing decisions", "- [ ] Hook output schema unchanged (no behavior changes)", "- [ ] Existing eval scenarios pass with identical decisions"],
+        "test_plan": ["Run ./test/evals/run-evals.sh", "Run ./test/test-working-directory.sh"],
+        "risk_mitigation": "Keep the inline prompt as a short-term fallback until file loading is stable.",
+        "experiment": {
+          "category": "creative",
+          "small_experiment": "Extract the prompt to a file and run three representative scenarios to compare decisions.",
+          "success_metric": "No decision diffs in the sample scenarios and prompt file loads correctly.",
+          "rollback_plan": "Revert to the inline prompt and delete the prompt files."
+        }
+      },
+      "labels": [],
+      "sync": {
+        "dedupe_key": "focus_area:REF-004",
+        "external_ids": {
+          "linear": { "id": null, "identifier": null },
+          "github": { "number": null, "node_id": null }
+        }
+      },
+      "platform_overrides": {},
+      "rendered": { "linear_description_md": null, "github_body_md": null }
+    },
+    {
+      "id": "REF-007",
+      "kind": "improvement",
+      "title": "Add optional structured decision tracing for debug workflows",
+      "order": 10,
+      "category": "Creative",
+      "type": "refactor",
+      "area": "infra",
+      "owner_role": "Fullstack",
+      "scores": { "impact": 3, "effort": 3, "expertise": 3, "risk": 2, "novelty": 4 },
+      "priority_score": 1.00,
+      "relations": { "parent": "EPIC-02", "depends_on": [] },
+      "targets": ["hooks/claude-judge-continuation.sh"],
+      "search_tokens": ["decision", "reason", "DEBUG", "trace"],
+      "content": {
+        "summary": "Introduce an opt-in debug trace that records decision flow without changing default output.",
+        "current_state": "Only a final reason string is emitted, which makes it hard to diagnose classification issues.",
+        "expected_improvements": ["Better observability during tuning", "Faster triage of misclassifications", "No impact on default behavior"],
+        "implementation_steps": ["Add a DEBUG_TRACE flag and trace helper", "Record key checkpoints (inputs, throttle state, prompt result)", "Emit trace to stderr or a temp file when enabled", "Ensure no trace output in default mode"],
+        "acceptance_criteria": ["- [ ] Default output remains unchanged (no behavior changes)", "- [ ] Trace output only appears when DEBUG_TRACE is set", "- [ ] Existing eval scenarios pass with identical decisions"],
+        "test_plan": ["Run ./test/evals/run-evals.sh", "Run a single scenario with DEBUG_TRACE=1 to verify trace output"],
+        "risk_mitigation": "Keep trace strictly opt-in and avoid adding stdout noise.",
+        "experiment": {
+          "category": "creative",
+          "small_experiment": "Add a minimal trace for one scenario and confirm stdout is unchanged.",
+          "success_metric": "Trace appears only with DEBUG_TRACE=1 and decisions are identical.",
+          "rollback_plan": "Remove trace logic and DEBUG_TRACE flag."
+        }
+      },
+      "labels": [],
+      "sync": {
+        "dedupe_key": "focus_area:REF-007",
+        "external_ids": {
+          "linear": { "id": null, "identifier": null },
+          "github": { "number": null, "node_id": null }
+        }
+      },
+      "platform_overrides": {},
+      "rendered": { "linear_description_md": null, "github_body_md": null }
+    },
+    {
+      "id": "REF-008",
+      "kind": "improvement",
+      "title": "Split hook into a pure decision engine and IO wrapper",
+      "order": 11,
+      "category": "Moonshot",
+      "type": "refactor",
+      "area": "infra",
+      "owner_role": "Fullstack",
+      "scores": { "impact": 5, "effort": 5, "expertise": 4, "risk": 4, "novelty": 5 },
+      "priority_score": 1.00,
+      "relations": { "parent": "EPIC-02", "depends_on": [] },
+      "targets": ["hooks/claude-judge-continuation.sh", "hooks/decision-engine.sh", "test/evals/run-evals.sh"],
+      "search_tokens": ["decision", "approve", "block", "claude --print", "EVALUATION_PROMPT"],
+      "content": {
+        "summary": "Separate pure decision logic from IO so it can be tested and reasoned about independently.",
+        "current_state": "The hook mixes IO, throttling, prompt construction, and decision output in a single script.",
+        "expected_improvements": ["Clear separation of concerns", "Easier deterministic testing", "Safer future changes"],
+        "implementation_steps": ["Define a decision-engine interface that accepts parsed inputs", "Extract decision logic into a new script or function", "Keep current hook as a thin wrapper over the engine", "Add a deterministic CLI harness for the engine", "Maintain existing eval runner behavior"],
+        "acceptance_criteria": ["- [ ] Hook output remains identical (no behavior changes)", "- [ ] Engine and wrapper are covered by existing eval scenarios", "- [ ] Existing eval scenarios pass with identical decisions"],
+        "test_plan": ["Run ./test/evals/run-evals.sh", "Run ./test/test-working-directory.sh"],
+        "risk_mitigation": "Introduce the engine behind a flag and keep the monolith as a fallback during migration.",
+        "experiment": {
+          "category": "moonshot",
+          "small_experiment": "Extract a minimal engine that returns a decision for one scenario and compare output.",
+          "success_metric": "Engine output matches current hook decision for sample scenarios.",
+          "rollback_plan": "Disable the engine path and keep the current monolithic script."
+        }
+      },
+      "labels": [],
+      "sync": {
+        "dedupe_key": "focus_area:REF-008",
+        "external_ids": {
+          "linear": { "id": null, "identifier": null },
+          "github": { "number": null, "node_id": null }
+        }
+      },
+      "platform_overrides": {},
+      "rendered": { "linear_description_md": null, "github_body_md": null }
+    }
+  ],
+  "recommended_sequence": ["REF-001", "REF-002", "REF-006", "REF-003", "REF-005", "REF-004", "REF-007", "REF-008"],
+  "rendering_rules": {
+    "include_sections": [
+      "summary",
+      "scores",
+      "targets",
+      "search_tokens",
+      "implementation_steps",
+      "acceptance_criteria",
+      "test_plan",
+      "risk_mitigation",
+      "experiment"
+    ]
+  }
+}
