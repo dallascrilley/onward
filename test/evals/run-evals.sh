@@ -7,7 +7,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCENARIOS_DIR="$SCRIPT_DIR/scenarios"
-HOOK_SCRIPT="$SCRIPT_DIR/../../scripts/claude-judge-continuation.sh"
+HOOK_SCRIPT="$SCRIPT_DIR/../../hooks/claude-judge-continuation.sh"
 TEMP_DIR="/tmp/hook-evals-$$"
 
 # Colors for output
@@ -15,6 +15,12 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
+
+# Validate hook script exists and is executable
+if [ ! -x "$HOOK_SCRIPT" ]; then
+    echo -e "${RED}ERROR: Hook script not found or not executable: $HOOK_SCRIPT${NC}" >&2
+    exit 1
+fi
 
 # Cleanup on exit
 cleanup() {
@@ -67,7 +73,22 @@ for scenario_file in "$SCENARIOS_DIR"/*.json; do
             }')
 
         # Run the hook script
-        hook_output=$(echo "$hook_event" | "$HOOK_SCRIPT" 2>/dev/null || echo '{"decision": "error"}')
+        hook_output=$(echo "$hook_event" | "$HOOK_SCRIPT" 2>&1)
+        hook_exit_code=$?
+        if [ $hook_exit_code -ne 0 ]; then
+            echo -e "   ${RED}✗${NC} Run $run: HOOK EXECUTION FAILED (exit code: $hook_exit_code)"
+            echo "      Output: $hook_output"
+            fails=$((fails + 1))
+            continue
+        fi
+
+        # Validate JSON response
+        if ! echo "$hook_output" | jq -e '.decision' >/dev/null 2>&1; then
+            echo -e "   ${RED}✗${NC} Run $run: INVALID HOOK RESPONSE (not valid JSON with decision)"
+            echo "      Output: $hook_output"
+            fails=$((fails + 1))
+            continue
+        fi
 
         # Parse the hook decision
         decision=$(echo "$hook_output" | jq -r '.decision')
