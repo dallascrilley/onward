@@ -16,6 +16,7 @@ source "$SCRIPT_DIR/lib/judge.sh"
 source "$SCRIPT_DIR/lib/settings.sh"
 source "$SCRIPT_DIR/lib/ignore.sh"
 source "$SCRIPT_DIR/lib/prompt.sh"
+source "$SCRIPT_DIR/lib/handoff.sh"
 
 # Load default configuration
 load_defaults
@@ -203,6 +204,8 @@ if [ "$SHOULD_CONTINUE" = "true" ]; then
 
     # Block the stop - Claude thinks it can continue
     emit_decision "block" "Claude evaluator determined continuation is appropriate: $REASONING"
+    # Handoff runs post-emit to avoid blocking stdout
+    handoff_write_if_needed "block" "$SESSION_ID" "Claude evaluator determined continuation is appropriate: $REASONING" "$RECENT_CONTEXT"
 else
     # Clear throttle file since we're allowing a legitimate stop
     throttle_clear "$THROTTLE_FILE"
@@ -213,6 +216,8 @@ else
 
     # Allow the stop - Claude thinks stopping is appropriate
     emit_decision "approve" "Claude evaluator determined stopping is appropriate: $REASONING"
+    # Handoff runs post-emit to avoid blocking stdout
+    handoff_write_if_needed "approve" "$SESSION_ID" "Claude evaluator determined stopping is appropriate: $REASONING" "$RECENT_CONTEXT"
 fi
 
 exit 0

@@ -80,6 +80,7 @@ When Claude tries to stop, a separate Claude instance evaluates the context and 
 - **Smart throttling** - max 3 continuations per 5 minutes
 - **Recursion prevention** - judge Claude can't trigger own hooks
 - **Graceful fallback** - allows stopping if evaluation fails
+- **Handoff snapshots** - writes `.claude/handoff.md` on approved stops with context for next session
 - **Zero configuration** - works after installation
 
 ## Technical Details
