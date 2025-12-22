@@ -25,6 +25,110 @@ if [ "$CLAUDE_HOOK_JUDGE_MODE" = "true" ]; then
     exit 0
 fi
 
+# === Throttle Helper Functions ===
+# Manages continuation throttling to prevent infinite loops
+# File format: <count>:<unix_epoch_seconds>
+#
+# Pseudocode:
+# - Derive a safe session key (hash preferred, sanitized fallback).
+# - Read throttle state; if missing/malformed/future timestamp, reset + clear.
+# - Increment count when a stop is blocked; reset to 0 when outside window.
+# - Write throttle state via temp file then atomic rename.
+# - Clear throttle state when stopping.
+
+# Returns throttle file path for a session ID
+throttle_file_for_session() {
+    local session_id="$1"
+    local safe_session_id
+    local session_hash=""
+
+    # Sanitize non-filesystem-safe characters; hash if available to avoid collisions/length issues.
+    safe_session_id="${session_id//[^A-Za-z0-9._-]/_}"
+    safe_session_id="${safe_session_id//../_}"
+    [ -n "$safe_session_id" ] || safe_session_id="unknown"
+
+    if command -v shasum >/dev/null 2>&1; then
+        read -r session_hash _ <<<"$(printf '%s' "$session_id" | shasum -a 256 2>/dev/null)"
+    elif command -v sha256sum >/dev/null 2>&1; then
+        read -r session_hash _ <<<"$(printf '%s' "$session_id" | sha256sum 2>/dev/null)"
+    fi
+
+    if [ -n "$session_hash" ]; then
+        safe_session_id="$session_hash"
+    else
+        safe_session_id="${safe_session_id:0:64}"
+    fi
+
+    echo "/tmp/.claude-continue-throttle-${safe_session_id}"
+}
+
+# Reads throttle file, sets CONTINUE_COUNT and LAST_CONTINUE_TIME globals
+throttle_read() {
+    local throttle_file="$1"
+    CONTINUE_COUNT=0
+    LAST_CONTINUE_TIME=0
+    [ -f "$throttle_file" ] || return 0
+    local throttle_data
+    throttle_data=$(<"$throttle_file")
+    [ -n "$throttle_data" ] || return 0
+    local count
+    local timestamp
+    local extra
+    IFS=':' read -r count timestamp extra <<<"$throttle_data"
+    if [ -z "$count" ] || [ -z "$timestamp" ] || [ -n "$extra" ]; then
+        throttle_clear "$throttle_file"
+        return 0
+    fi
+    if ! [[ "$count" =~ ^[0-9]+$ ]] || ! [[ "$timestamp" =~ ^[0-9]+$ ]]; then
+        throttle_clear "$throttle_file"
+        return 0
+    fi
+    if [ "$timestamp" -gt "$CURRENT_TIME" ]; then
+        throttle_clear "$throttle_file"
+        return 0
+    fi
+    CONTINUE_COUNT="$count"
+    LAST_CONTINUE_TIME="$timestamp"
+}
+
+# Writes count:timestamp to throttle file
+throttle_write() {
+    local throttle_file="$1"
+    local count="$2"
+    local timestamp="$3"
+    local temp_file
+    temp_file=$(mktemp "${throttle_file}.tmp.XXXXXX") || return 1
+    if ! printf '%s:%s\n' "$count" "$timestamp" > "$temp_file"; then
+        rm -f "$temp_file"
+        return 1
+    fi
+    if ! mv -f "$temp_file" "$throttle_file"; then
+        rm -f "$temp_file"
+        return 1
+    fi
+}
+
+# Returns 0 if should force stop, 1 otherwise
+# Side effect: Resets CONTINUE_COUNT if outside window
+throttle_should_force_stop() {
+    local max_continues="${1:-$MAX_CONTINUATIONS}"
+    local window_seconds="${2:-$THROTTLE_WINDOW_SECONDS}"
+    local time_since_last=$((CURRENT_TIME - LAST_CONTINUE_TIME))
+    if [ "$time_since_last" -gt "$window_seconds" ]; then
+        CONTINUE_COUNT=0
+        return 1
+    fi
+    [ "$CONTINUE_COUNT" -ge "$max_continues" ]
+}
+
+# Removes throttle file
+throttle_clear() {
+    local throttle_file="$1"
+    rm -f "$throttle_file"
+}
+
+# === End Throttle Helpers ===
+
 # Read the hook event data
 EVENT=$(cat)
 
@@ -34,44 +138,56 @@ TRANSCRIPT_PATH=$(echo "$EVENT" | jq -r '.transcript_path // ""')
 
 # Time-based throttling to prevent infinite loops
 SESSION_ID=$(echo "$EVENT" | jq -r '.session_id // "unknown"')
-THROTTLE_FILE="/tmp/.claude-continue-throttle-$(echo "$SESSION_ID" | tr '/' '_')"
+THROTTLE_FILE=$(throttle_file_for_session "$SESSION_ID")
 CURRENT_TIME=$(date +%s)
 
-# If this is already a continuation from a previous stop hook, check time throttling
+# Early exit: Force stop if continuation limit reached in active stop hook cycle
 if [ "$STOP_HOOK_ACTIVE" = "true" ]; then
-    # Allow up to $MAX_CONTINUATIONS continuations in the time window, then force stop
-    CONTINUE_COUNT=0
-    LAST_CONTINUE_TIME=0
-    if [ -f "$THROTTLE_FILE" ]; then
-        THROTTLE_DATA=$(cat "$THROTTLE_FILE")
-        CONTINUE_COUNT=$(echo "$THROTTLE_DATA" | cut -d: -f1)
-        LAST_CONTINUE_TIME=$(echo "$THROTTLE_DATA" | cut -d: -f2)
-    fi
-
-    TIME_SINCE_LAST=$((CURRENT_TIME - LAST_CONTINUE_TIME))
-
-    # Reset counter if it's been more than the time window
-    if [ "$TIME_SINCE_LAST" -gt "$THROTTLE_WINDOW_SECONDS" ]; then
-        CONTINUE_COUNT=0
-    fi
-
-    # If we've continued too many times recently, force stop
-    if [ "$CONTINUE_COUNT" -ge "$MAX_CONTINUATIONS" ] && [ "$TIME_SINCE_LAST" -lt "$THROTTLE_WINDOW_SECONDS" ]; then
+    throttle_read "$THROTTLE_FILE"
+    if throttle_should_force_stop "$MAX_CONTINUATIONS" "$THROTTLE_WINDOW_SECONDS"; then
         emit_decision "approve" "Maximum continuation cycles reached in time window, forcing stop to prevent infinite loops"
-        rm -f "$THROTTLE_FILE"
+        throttle_clear "$THROTTLE_FILE"
         exit 0
     fi
 fi
 
-# Check if we have a transcript path
-if [ -z "$TRANSCRIPT_PATH" ] || [ ! -f "$TRANSCRIPT_PATH" ]; then
-    emit_decision "approve" "No transcript available for evaluation"
+# --- Transcript file validation (fail closed: approve stop on any error) ---
+if [ -z "$TRANSCRIPT_PATH" ]; then
+    emit_decision "approve" "No transcript path provided"
     exit 0
 fi
 
-# Extract the last few exchanges from the transcript (Claude's response + context)
-# We want the most recent assistant message and some preceding context
-RECENT_CONTEXT=$(tail -n "$TRANSCRIPT_CONTEXT_LINES" "$TRANSCRIPT_PATH" | jq -s '.')
+if [ ! -f "$TRANSCRIPT_PATH" ]; then
+    emit_decision "approve" "Transcript file not found"
+    exit 0
+fi
+
+if [ ! -r "$TRANSCRIPT_PATH" ]; then
+    emit_decision "approve" "Transcript file not readable"
+    exit 0
+fi
+
+if [ ! -s "$TRANSCRIPT_PATH" ]; then
+    emit_decision "approve" "Transcript file is empty"
+    exit 0
+fi
+
+# --- Extract last TRANSCRIPT_CONTEXT_LINES valid NDJSON entries (tolerant of empty/invalid lines) ---
+# Read more lines than needed to ensure we get enough valid ones after filtering
+RECENT_CONTEXT=$(tail -n 50 "$TRANSCRIPT_PATH" 2>/dev/null | \
+    grep -v '^[[:space:]]*$' | \
+    while IFS= read -r line; do
+        # Only output lines that are valid JSON
+        printf '%s\n' "$line" | jq -e '.' >/dev/null 2>&1 && printf '%s\n' "$line"
+    done | \
+    tail -n "$TRANSCRIPT_CONTEXT_LINES" | \
+    jq -s '.' 2>/dev/null)
+
+# Validate we got usable context
+if [ -z "$RECENT_CONTEXT" ] || [ "$RECENT_CONTEXT" = "[]" ] || [ "$RECENT_CONTEXT" = "null" ]; then
+    emit_decision "approve" "No valid transcript entries found"
+    exit 0
+fi
 
 # Create a JSON schema for the response
 JSON_SCHEMA='{"type":"object","properties":{"should_continue":{"type":"boolean"},"reasoning":{"type":"string"}},"required":["should_continue","reasoning"]}'
@@ -140,20 +256,15 @@ REASONING=$(echo "$EVALUATION_RESULT" | jq -r '.reasoning // "No reasoning provi
 # Make the decision based on Claude's evaluation
 if [ "$SHOULD_CONTINUE" = "true" ]; then
     # Update throttle tracking
-    if [ -f "$THROTTLE_FILE" ]; then
-        THROTTLE_DATA=$(cat "$THROTTLE_FILE")
-        CONTINUE_COUNT=$(echo "$THROTTLE_DATA" | cut -d: -f1)
-        CONTINUE_COUNT=$((CONTINUE_COUNT + 1))
-    else
-        CONTINUE_COUNT=1
-    fi
-    echo "$CONTINUE_COUNT:$CURRENT_TIME" > "$THROTTLE_FILE"
+    throttle_read "$THROTTLE_FILE"
+    CONTINUE_COUNT=$((CONTINUE_COUNT + 1))
+    throttle_write "$THROTTLE_FILE" "$CONTINUE_COUNT" "$CURRENT_TIME"
 
     # Block the stop - Claude thinks it can continue
     emit_decision "block" "Claude evaluator determined continuation is appropriate: $REASONING"
 else
     # Clear throttle file since we're allowing a legitimate stop
-    rm -f "$THROTTLE_FILE"
+    throttle_clear "$THROTTLE_FILE"
 
     # Allow the stop - Claude thinks stopping is appropriate
     emit_decision "approve" "Claude evaluator determined stopping is appropriate: $REASONING"
