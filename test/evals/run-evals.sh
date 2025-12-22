@@ -30,6 +30,97 @@ trap cleanup EXIT
 
 mkdir -p "$TEMP_DIR"
 
+# Validate scenario JSON schema
+validate_scenario() {
+    local scenario_file="$1"
+    local errors=()
+
+    # Check file is valid JSON
+    local jq_error
+    if ! jq_error=$(jq empty "$scenario_file" 2>&1); then
+        echo "Invalid JSON: $jq_error"
+        return 1
+    fi
+
+    # Check required fields exist and have correct types
+    local name=$(jq -r '.name // empty' "$scenario_file")
+    local desc=$(jq -r '.description // empty' "$scenario_file")
+    local has_decision=$(jq 'has("expected_decision")' "$scenario_file")
+    local transcript_type=$(jq -r '.transcript | type' "$scenario_file")
+
+    [ -z "$name" ] && errors+=("missing or empty 'name'")
+    [ -z "$desc" ] && errors+=("missing or empty 'description'")
+
+    # Validate expected_decision exists and is boolean
+    if [ "$has_decision" != "true" ]; then
+        errors+=("missing 'expected_decision'")
+    else
+        local decision_type=$(jq -r '.expected_decision | type' "$scenario_file")
+        [ "$decision_type" != "boolean" ] && errors+=("'expected_decision' must be boolean, got $decision_type")
+    fi
+
+    # Validate transcript is non-empty array
+    if [ "$transcript_type" != "array" ]; then
+        errors+=("'transcript' must be array, got $transcript_type")
+    else
+        local transcript_len=$(jq '.transcript | length' "$scenario_file")
+        if [ "$transcript_len" -eq 0 ]; then
+            errors+=("'transcript' is empty")
+        else
+            # Only validate messages if transcript is a valid non-empty array
+            local invalid_messages=$(jq -r '
+                .transcript | to_entries[] |
+                select(.value.role == null or .value.content == null) |
+                "message[\(.key)]: missing " +
+                (if .value.role == null then "role" else "" end) +
+                (if .value.role == null and .value.content == null then " and " else "" end) +
+                (if .value.content == null then "content" else "" end)
+            ' "$scenario_file") || true
+
+            [ -n "$invalid_messages" ] && errors+=("$invalid_messages")
+
+            # Validate role values
+            local invalid_roles=$(jq -r '
+                .transcript | to_entries[] |
+                select(.value.role != "user" and .value.role != "assistant") |
+                "message[\(.key)]: invalid role \(.value.role | @json)"
+            ' "$scenario_file") || true
+
+            [ -n "$invalid_roles" ] && errors+=("$invalid_roles")
+        fi
+    fi
+
+    if [ ${#errors[@]} -gt 0 ]; then
+        printf '%s\n' "${errors[@]}"
+        return 1
+    fi
+
+    return 0
+}
+
+# Preflight: Validate all scenarios before running
+echo "Validating scenario schemas..."
+validation_failed=false
+
+for scenario_file in "$SCENARIOS_DIR"/*.json; do
+    [ ! -f "$scenario_file" ] && continue
+
+    if ! validation_errors=$(validate_scenario "$scenario_file"); then
+        echo -e "${RED}INVALID:${NC} $(basename "$scenario_file")"
+        echo "$validation_errors" | sed 's/^/  - /'
+        validation_failed=true
+    fi
+done
+
+if [ "$validation_failed" = true ]; then
+    echo ""
+    echo -e "${RED}Schema validation failed. Fix scenarios before running evals.${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}All scenarios valid.${NC}"
+echo ""
+
 echo "🧪 Running Hook Evaluation Suite"
 echo "================================="
 echo ""
