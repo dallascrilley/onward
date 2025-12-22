@@ -10,6 +10,16 @@ SCENARIOS_DIR="$SCRIPT_DIR/scenarios"
 HOOK_SCRIPT="$SCRIPT_DIR/../../hooks/claude-judge-continuation.sh"
 TEMP_DIR="/tmp/hook-evals-$$"
 
+# Configuration with environment variable overrides
+EVAL_PROVIDER=${EVAL_PROVIDER:-stub}
+RUNS_PER_SCENARIO=${RUNS_PER_SCENARIO:-5}
+SCENARIO_GLOB=${SCENARIO_GLOB:-*.json}
+
+# Inject stub claude binary into PATH for fast testing (default)
+if [ "$EVAL_PROVIDER" = "stub" ]; then
+    export PATH="$SCRIPT_DIR/bin:$PATH"
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -102,7 +112,7 @@ validate_scenario() {
 echo "Validating scenario schemas..."
 validation_failed=false
 
-for scenario_file in "$SCENARIOS_DIR"/*.json; do
+for scenario_file in "$SCENARIOS_DIR"/$SCENARIO_GLOB; do
     [ ! -f "$scenario_file" ] && continue
 
     if ! validation_errors=$(validate_scenario "$scenario_file"); then
@@ -130,7 +140,7 @@ total_passed=0
 total_failed=0
 
 # Process each scenario file
-for scenario_file in "$SCENARIOS_DIR"/*.json; do
+for scenario_file in "$SCENARIOS_DIR"/$SCENARIO_GLOB; do
     if [ ! -f "$scenario_file" ]; then
         continue
     fi
@@ -149,7 +159,7 @@ for scenario_file in "$SCENARIOS_DIR"/*.json; do
     passes=0
     fails=0
 
-    for run in {1..5}; do
+    for run in $(seq 1 $RUNS_PER_SCENARIO); do
         # Create transcript file from scenario (NDJSON format - one message per line)
         transcript_file="$TEMP_DIR/transcript-$total_scenarios-$run.json"
         jq -c '.transcript[]' "$scenario_file" > "$transcript_file"
@@ -163,8 +173,8 @@ for scenario_file in "$SCENARIOS_DIR"/*.json; do
                 "session_id": "eval-test-session"
             }')
 
-        # Run the hook script
-        hook_output=$(echo "$hook_event" | "$HOOK_SCRIPT" 2>&1)
+        # Run the hook script (pass expected_decision for stub mode)
+        hook_output=$(echo "$hook_event" | STUB_EXPECTED_DECISION="$expected_decision" "$HOOK_SCRIPT" 2>&1)
         hook_exit_code=$?
         if [ $hook_exit_code -ne 0 ]; then
             echo -e "   ${RED}✗${NC} Run $run: HOOK EXECUTION FAILED (exit code: $hook_exit_code)"
@@ -206,10 +216,10 @@ for scenario_file in "$SCENARIOS_DIR"/*.json; do
 
     # Report scenario results
     if [ $fails -eq 0 ]; then
-        echo -e "   ${GREEN}✓ Scenario PASSED${NC} (5/5 runs correct)"
+        echo -e "   ${GREEN}✓ Scenario PASSED${NC} ($RUNS_PER_SCENARIO/$RUNS_PER_SCENARIO runs correct)"
         total_passed=$((total_passed + 1))
     else
-        echo -e "   ${RED}✗ Scenario FAILED${NC} ($passes/5 runs correct)"
+        echo -e "   ${RED}✗ Scenario FAILED${NC} ($passes/$RUNS_PER_SCENARIO runs correct)"
         total_failed=$((total_failed + 1))
     fi
 
