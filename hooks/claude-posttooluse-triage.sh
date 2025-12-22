@@ -54,6 +54,7 @@ COMMAND=$(echo "$EVENT" | jq -r '
     .payload.command //
     .payload.arguments.command //
     .tool_input.command //
+    .tool_result.command //
     "unknown command"
 ' 2>/dev/null)
 
