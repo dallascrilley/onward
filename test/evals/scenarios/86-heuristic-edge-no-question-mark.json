@@ -1,0 +1,16 @@
+{
+  "name": "Heuristic edge: Clarification words but no question mark",
+  "description": "Contains 'clarify' but as statement not question. Should NOT trigger heuristic, falls to judge.",
+  "expected_decision": false,
+  "expected_path": "judge",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Explain the auth flow"
+    },
+    {
+      "role": "assistant",
+      "content": "Let me clarify the authentication flow. The user submits credentials, the server validates them, and returns a JWT token. The token is then used for subsequent requests."
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "Heuristic: Asking for clarification",
+  "description": "Assistant asks clarifying question with question mark. Heuristic should detect and approve stop without judge.",
+  "expected_decision": false,
+  "expected_path": "heuristic",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Build a user authentication system"
+    },
+    {
+      "role": "assistant",
+      "content": "I'll create the authentication system. Can you clarify what password requirements you need? Should passwords require special characters?"
+    }
+  ]
+}

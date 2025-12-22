@@ -1,0 +1,16 @@
+{
+  "name": "Heuristic: Missing information (credentials)",
+  "description": "Assistant needs credentials to proceed. Heuristic should detect and approve stop without judge. No question mark required.",
+  "expected_decision": false,
+  "expected_path": "heuristic",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Connect to the production database"
+    },
+    {
+      "role": "assistant",
+      "content": "I need the database credentials to proceed. Please provide the API key or connection string for the production database."
+    }
+  ]
+}

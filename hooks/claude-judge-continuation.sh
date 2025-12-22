@@ -153,6 +153,7 @@ if [ -n "$PERMISSION_PATTERN" ]; then
     PERMISSION_DECISION=$(permission_language_decision "$PERMISSION_PATTERN")
 
     if [ -n "$PERMISSION_DECISION" ]; then
+        debug_log "prefilter_path" --arg path "permission"
         debug_log "permission_language" \
             --arg pattern "$PERMISSION_PATTERN" \
             --arg decision "$PERMISSION_DECISION"
@@ -173,7 +174,46 @@ if [ -n "$PERMISSION_PATTERN" ]; then
     fi
 fi
 
+# --- Check heuristic signals (Phase 3 prefilter, bypasses judge) ---
+HEURISTIC_SIGNAL=$(detect_heuristic_signal "$RECENT_CONTEXT" 2>/dev/null) || true
+
+if [ -n "$HEURISTIC_SIGNAL" ]; then
+    HEURISTIC_STOP=$(heuristic_should_stop "$HEURISTIC_SIGNAL")
+
+    if [ -n "$HEURISTIC_STOP" ]; then
+        # Map to decision for logging
+        if [ "$HEURISTIC_STOP" = "true" ]; then
+            HEURISTIC_DECISION="approve"
+        else
+            HEURISTIC_DECISION="block"
+        fi
+
+        debug_log "prefilter_path" --arg path "heuristic"
+        debug_log "heuristic_signal" \
+            --arg signal "$HEURISTIC_SIGNAL" \
+            --arg decision "$HEURISTIC_DECISION"
+
+        # Build v2 evaluation payload for consistency with explain.sh
+        PERSIST_EVALUATION_RESULT=$(build_heuristic_evaluation "$HEURISTIC_SIGNAL" "$HEURISTIC_STOP" "$HEURISTIC_DECISION")
+
+        if [ "$HEURISTIC_DECISION" = "block" ]; then
+            # Update throttle tracking (same as judge continue)
+            throttle_read "$THROTTLE_FILE"
+            CONTINUE_COUNT=$((CONTINUE_COUNT + 1))
+            throttle_write "$THROTTLE_FILE" "$CONTINUE_COUNT" "$CURRENT_TIME"
+
+            emit_decision "block" "Heuristic detected '$HEURISTIC_SIGNAL': work continues without judge"
+            exit 0
+        elif [ "$HEURISTIC_DECISION" = "approve" ]; then
+            throttle_clear "$THROTTLE_FILE"
+            emit_decision "approve" "Heuristic detected '$HEURISTIC_SIGNAL': user input needed, stopping without judge"
+            exit 0
+        fi
+    fi
+fi
+
 # --- Call the judge ---
+debug_log "prefilter_path" --arg path "judge"
 debug_log "claude_invoking" --arg model "$CLAUDE_MODEL"
 EVALUATION_RESULT=$(judge_should_continue "$RECENT_CONTEXT" "$CLAUDE_MODEL" "$CLAUDE_WORK_DIR")
 CLAUDE_EXIT_CODE=$?
