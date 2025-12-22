@@ -132,7 +132,7 @@ _handoff_format_context() {
 
 # Internal: Build git status section
 _handoff_git_section() {
-    local branch changed_files result=""
+    local branch result=""
 
     # Get current branch
     branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
@@ -141,18 +141,20 @@ _handoff_git_section() {
 "
     fi
 
-    # Get changed files (staged + unstaged)
-    changed_files=$(git diff --name-only HEAD 2>/dev/null | head -n "$HANDOFF_MAX_GIT_FILES")
-    if [ -z "$changed_files" ]; then
-        # Try without HEAD for new repos
-        changed_files=$(git diff --name-only 2>/dev/null | head -n "$HANDOFF_MAX_GIT_FILES")
-    fi
+    # Get all changed files: staged + unstaged + untracked
+    # Combine and dedupe with sort -u
+    local changed_files
+    changed_files=$({
+        git diff --name-only 2>/dev/null
+        git diff --staged --name-only 2>/dev/null
+    } | sort -u | head -n "$HANDOFF_MAX_GIT_FILES")
 
     if [ -n "$changed_files" ]; then
         result="${result}
 **Changed files:**
 "
         while IFS= read -r file; do
+            [ -n "$file" ] || continue
             result="${result}- $file
 "
         done <<< "$changed_files"
