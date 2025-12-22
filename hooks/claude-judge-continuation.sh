@@ -54,6 +54,23 @@ Default to STOP when uncertain.
 EOF
 }
 
+# Build recent transcript context as a JSON array.
+# Steps:
+# - Read the last 50 lines
+# - Drop empty lines and invalid JSON
+# - Keep the most recent TRANSCRIPT_CONTEXT_LINES
+# - Pack into a JSON array
+build_recent_context() {
+    local transcript_path="$1"
+    tail -n 50 "$transcript_path" 2>/dev/null | \
+        grep -v '^[[:space:]]*$' | \
+        while IFS= read -r line; do
+            printf '%s\n' "$line" | jq -e '.' >/dev/null 2>&1 && printf '%s\n' "$line"
+        done | \
+        tail -n "$TRANSCRIPT_CONTEXT_LINES" | \
+        jq -s '.' 2>/dev/null
+}
+
 # Single output emitter - all stdout JSON goes through here
 emit_decision() {
     local decision="$1"
@@ -81,13 +98,7 @@ if [ "$SNAPSHOT_EXTRACT_MODE" = "true" ]; then
     fi
 
     # Build context using same logic as production
-    RECENT_CONTEXT=$(tail -n 50 "$TRANSCRIPT_PATH" 2>/dev/null | \
-        grep -v '^[[:space:]]*$' | \
-        while IFS= read -r line; do
-            printf '%s\n' "$line" | jq -e '.' >/dev/null 2>&1 && printf '%s\n' "$line"
-        done | \
-        tail -n "$TRANSCRIPT_CONTEXT_LINES" | \
-        jq -s '.' 2>/dev/null)
+    RECENT_CONTEXT=$(build_recent_context "$TRANSCRIPT_PATH")
 
     # Build evaluation prompt
     EVALUATION_PROMPT=$(build_evaluation_prompt "$RECENT_CONTEXT")
@@ -256,14 +267,7 @@ fi
 
 # --- Extract last TRANSCRIPT_CONTEXT_LINES valid NDJSON entries (tolerant of empty/invalid lines) ---
 # Read more lines than needed to ensure we get enough valid ones after filtering
-RECENT_CONTEXT=$(tail -n 50 "$TRANSCRIPT_PATH" 2>/dev/null | \
-    grep -v '^[[:space:]]*$' | \
-    while IFS= read -r line; do
-        # Only output lines that are valid JSON
-        printf '%s\n' "$line" | jq -e '.' >/dev/null 2>&1 && printf '%s\n' "$line"
-    done | \
-    tail -n "$TRANSCRIPT_CONTEXT_LINES" | \
-    jq -s '.' 2>/dev/null)
+RECENT_CONTEXT=$(build_recent_context "$TRANSCRIPT_PATH")
 
 # Validate we got usable context
 if [ -z "$RECENT_CONTEXT" ] || [ "$RECENT_CONTEXT" = "[]" ] || [ "$RECENT_CONTEXT" = "null" ]; then
