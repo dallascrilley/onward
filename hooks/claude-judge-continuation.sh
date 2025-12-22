@@ -5,6 +5,13 @@
 # Uses another Claude instance to judge whether continuation is appropriate
 # DEFAULT STANCE: Continue unless there's a CLEAR reason to stop
 
+# Configuration constants
+MAX_CONTINUATIONS=3
+THROTTLE_WINDOW_SECONDS=300
+TRANSCRIPT_CONTEXT_LINES=10
+CLAUDE_MODEL="haiku"
+CLAUDE_WORK_DIR="$HOME/.claude/double-shot-latte"
+
 # Single output emitter - all stdout JSON goes through here
 emit_decision() {
     local decision="$1"
@@ -104,8 +111,8 @@ throttle_write() {
 # Returns 0 if should force stop, 1 otherwise
 # Side effect: Resets CONTINUE_COUNT if outside window
 throttle_should_force_stop() {
-    local max_continues="${1:-3}"
-    local window_seconds="${2:-300}"
+    local max_continues="${1:-$MAX_CONTINUATIONS}"
+    local window_seconds="${2:-$THROTTLE_WINDOW_SECONDS}"
     local time_since_last=$((CURRENT_TIME - LAST_CONTINUE_TIME))
     if [ "$time_since_last" -gt "$window_seconds" ]; then
         CONTINUE_COUNT=0
@@ -137,7 +144,7 @@ CURRENT_TIME=$(date +%s)
 # Early exit: Force stop if continuation limit reached in active stop hook cycle
 if [ "$STOP_HOOK_ACTIVE" = "true" ]; then
     throttle_read "$THROTTLE_FILE"
-    if throttle_should_force_stop 3 300; then
+    if throttle_should_force_stop "$MAX_CONTINUATIONS" "$THROTTLE_WINDOW_SECONDS"; then
         emit_decision "approve" "Maximum continuation cycles reached in time window, forcing stop to prevent infinite loops"
         throttle_clear "$THROTTLE_FILE"
         exit 0
@@ -165,15 +172,15 @@ if [ ! -s "$TRANSCRIPT_PATH" ]; then
     exit 0
 fi
 
-# --- Extract last 10 valid NDJSON entries (tolerant of empty/invalid lines) ---
-# Read more lines than needed to ensure we get 10 valid ones after filtering
+# --- Extract last TRANSCRIPT_CONTEXT_LINES valid NDJSON entries (tolerant of empty/invalid lines) ---
+# Read more lines than needed to ensure we get enough valid ones after filtering
 RECENT_CONTEXT=$(tail -n 50 "$TRANSCRIPT_PATH" 2>/dev/null | \
     grep -v '^[[:space:]]*$' | \
     while IFS= read -r line; do
         # Only output lines that are valid JSON
         printf '%s\n' "$line" | jq -e '.' >/dev/null 2>&1 && printf '%s\n' "$line"
     done | \
-    tail -n 10 | \
+    tail -n "$TRANSCRIPT_CONTEXT_LINES" | \
     jq -s '.' 2>/dev/null)
 
 # Validate we got usable context
@@ -189,7 +196,6 @@ JSON_SCHEMA='{"type":"object","properties":{"should_continue":{"type":"boolean"}
 SYSTEM_PROMPT="You are a conversation state classifier. Your only job is to analyze conversation transcripts and determine if the assistant has more autonomous work to do. You output structured JSON. You do not write code or use tools."
 
 # Ensure the working directory exists
-CLAUDE_WORK_DIR="$HOME/.claude/double-shot-latte"
 mkdir -p "$CLAUDE_WORK_DIR"
 
 # Create the evaluation prompt
@@ -226,7 +232,7 @@ Default to STOP when uncertain."
 # Use claude --print to get the evaluation with structured output
 # Set environment variable to prevent recursion, use JSON schema, disable tools
 # Run claude in the dedicated working directory
-CLAUDE_RESPONSE=$(echo "$EVALUATION_PROMPT" | (cd "$CLAUDE_WORK_DIR" && CLAUDE_HOOK_JUDGE_MODE=true claude --print --model haiku --output-format json --json-schema "$JSON_SCHEMA" --system-prompt "$SYSTEM_PROMPT" --disallowedTools '*') 2>/dev/null)
+CLAUDE_RESPONSE=$(echo "$EVALUATION_PROMPT" | (cd "$CLAUDE_WORK_DIR" && CLAUDE_HOOK_JUDGE_MODE=true claude --print --model "$CLAUDE_MODEL" --output-format json --json-schema "$JSON_SCHEMA" --system-prompt "$SYSTEM_PROMPT" --disallowedTools '*') 2>/dev/null)
 
 # Check if claude command succeeded
 if [ $? -ne 0 ]; then
