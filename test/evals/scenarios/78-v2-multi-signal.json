@@ -1,6 +1,6 @@
 {
   "name": "v2: Multiple signals detected",
-  "description": "Transcript shows both explicit next steps AND incomplete implementation. Multiple signals expected.",
+  "description": "Transcript shows both continuation intent AND incomplete implementation. Multiple signals expected. Uses phrasing that falls through to judge.",
   "expected_decision": true,
   "expected_v2_fields": {
     "decision_category": "explicit_continuation",
@@ -14,7 +14,7 @@
     },
     {
       "role": "assistant",
-      "content": "Created the user model and basic CRUD endpoints. Now I need to add the authentication middleware. Also, tests are still missing for the update and delete operations."
+      "content": "Created the user model and basic CRUD endpoints. The authentication middleware is the next piece to add. Also, tests are still missing for the update and delete operations."
     }
   ]
 }
