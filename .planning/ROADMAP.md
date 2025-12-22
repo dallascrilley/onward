@@ -14,7 +14,7 @@ None (bash scripting, internal tooling)
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 1: Permission Prefilter** - Skip judge for permission-seeking language
+- [x] **Phase 1: Permission Prefilter** - Skip judge for permission-seeking language ✓
 - [ ] **Phase 2: Structured Output** - v2 schema with confidence and signals
 - [ ] **Phase 3: Signal Heuristics** - Pattern-based decisions for obvious cases
 - [ ] **Phase 4: Definition of Done** - User-defined completion criteria
@@ -90,7 +90,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Permission Prefilter | TBD | Not started | - |
+| 1. Permission Prefilter | 1/1 | Complete | 2025-12-22 |
 | 2. Structured Output | TBD | Not started | - |
 | 3. Signal Heuristics | TBD | Not started | - |
 | 4. Definition of Done | TBD | Not started | - |
