@@ -94,22 +94,26 @@ $git_section"
 }
 
 # Internal: Format recent context as markdown list
+# Parses JSON once and iterates results to avoid repeated jq calls
 _handoff_format_context() {
     local context_json="$1"
     local result=""
 
-    # Parse each message and format as markdown
-    local count
-    count=$(echo "$context_json" | jq -r 'length' 2>/dev/null) || return 0
-    [ "$count" -gt 0 ] || return 0
+    # Validate jq is available
+    command -v jq >/dev/null 2>&1 || return 0
 
-    local i=0
-    while [ "$i" -lt "$count" ]; do
-        local role content truncated
-        role=$(echo "$context_json" | jq -r ".[$i].role // \"unknown\"" 2>/dev/null)
-        content=$(echo "$context_json" | jq -r ".[$i].content // \"\"" 2>/dev/null)
+    # Parse all messages in a single jq call: "role\tcontent\n" per message
+    # Using tab as delimiter since it's unlikely in content
+    local parsed
+    parsed=$(echo "$context_json" | jq -r '.[] | "\(.role // "unknown")\t\(.content // "")"' 2>/dev/null) || return 0
+    [ -n "$parsed" ] || return 0
+
+    # Iterate over parsed lines
+    while IFS=$'\t' read -r role content; do
+        [ -n "$role" ] || continue
 
         # Truncate content if too long
+        local truncated
         if [ ${#content} -gt "$HANDOFF_MAX_CONTENT_CHARS" ]; then
             truncated="${content:0:$HANDOFF_MAX_CONTENT_CHARS}..."
         else
@@ -121,8 +125,7 @@ _handoff_format_context() {
 
         result="${result}- **${role}:** ${truncated}
 "
-        i=$((i + 1))
-    done
+    done <<< "$parsed"
 
     printf '%s' "$result"
 }
