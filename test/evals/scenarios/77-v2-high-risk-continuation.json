@@ -2,6 +2,11 @@
   "name": "v2: High risk but valid continuation",
   "description": "Assistant explicitly states next step involving risky refactor. Continue with high risk level.",
   "expected_decision": true,
+  "expected_v2_fields": {
+    "decision_category": "explicit_continuation",
+    "risk_level": "high",
+    "confidence_min": 0.75
+  },
   "transcript": [
     {
       "role": "user",
