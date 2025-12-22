@@ -14,6 +14,8 @@ source "$SCRIPT_DIR/lib/throttle.sh"
 source "$SCRIPT_DIR/lib/transcript.sh"
 source "$SCRIPT_DIR/lib/judge.sh"
 source "$SCRIPT_DIR/lib/settings.sh"
+source "$SCRIPT_DIR/lib/ignore.sh"
+source "$SCRIPT_DIR/lib/prompt.sh"
 
 # Load default configuration
 load_defaults
@@ -134,6 +136,15 @@ if [ -z "$RECENT_CONTEXT" ] || [ "$RECENT_CONTEXT" = "[]" ] || [ "$RECENT_CONTEX
     exit 0
 fi
 
+# --- Check ignore patterns (bypass judge if matched) ---
+IGNORE_MATCH=$(ignore_should_approve_stop "$RECENT_CONTEXT" 2>/dev/null) || true
+if [ -n "$IGNORE_MATCH" ]; then
+    debug_log "ignore_pattern_matched" --arg pattern "$IGNORE_MATCH"
+    throttle_clear "$THROTTLE_FILE"
+    emit_decision "approve" "Matched ignore pattern: $IGNORE_MATCH"
+    exit 0
+fi
+
 # --- Call the judge ---
 debug_log "claude_invoking" --arg model "$CLAUDE_MODEL"
 EVALUATION_RESULT=$(judge_should_continue "$RECENT_CONTEXT" "$CLAUDE_MODEL" "$CLAUDE_WORK_DIR")
@@ -168,7 +179,16 @@ REASONING=$(echo "$EVALUATION_RESULT" | jq -r '.reasoning // "No reasoning provi
 HAS_REASONING=$( [ -n "$REASONING" ] && [ "$REASONING" != "No reasoning provided" ] && echo true || echo false )
 debug_log "evaluation_parsed" \
     --argjson should_continue "$(json_bool "$SHOULD_CONTINUE" false)" \
-    --argjson has_reasoning "$(json_bool "$HAS_REASONING" false)"
+    --argjson has_reasoning "$(json_bool "$HAS_REASONING" false)" \
+    --argjson dry_run "$(json_bool "$REDBULL_DRY_RUN" false)"
+
+# --- Dry-run mode: evaluate but always approve stop ---
+if [ "$REDBULL_DRY_RUN" = "true" ]; then
+    debug_log "dry_run_mode" --argjson would_continue "$(json_bool "$SHOULD_CONTINUE" false)"
+    # Don't update throttle in dry-run mode
+    emit_decision "approve" "[DRY-RUN] Would have $([ "$SHOULD_CONTINUE" = "true" ] && echo "blocked (continue)" || echo "approved (stop)"): $REASONING"
+    exit 0
+fi
 
 # Make the decision based on Claude's evaluation
 if [ "$SHOULD_CONTINUE" = "true" ]; then
