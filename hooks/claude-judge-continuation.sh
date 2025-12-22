@@ -45,11 +45,19 @@ if [ "$SNAPSHOT_EXTRACT_MODE" = "true" ] && [ "$SNAPSHOT_EXTRACT_ALLOW" = "true"
         exit 1
     fi
 
+    # Load per-project settings so snapshots reflect real judge inputs
+    settings_load
+    settings_apply_aggressiveness
+
     # Build context using lib function
     RECENT_CONTEXT=$(extract_recent_context_json_array "$TRANSCRIPT_PATH" "$TRANSCRIPT_CONTEXT_LINES")
 
-    # Build evaluation prompt using lib function
-    EVALUATION_PROMPT=$(build_evaluation_prompt "$RECENT_CONTEXT")
+    # Build evaluation prompt using rules-enhanced prompt when available
+    if type build_evaluation_prompt_with_rules &>/dev/null; then
+        EVALUATION_PROMPT=$(build_evaluation_prompt_with_rules "$RECENT_CONTEXT")
+    else
+        EVALUATION_PROMPT=$(build_evaluation_prompt "$RECENT_CONTEXT")
+    fi
 
     # Output as JSON for snapshot comparison
     jq -n \

@@ -13,6 +13,8 @@ SCENARIOS_DIR="$SCRIPT_DIR/scenarios"
 HOOK_SCRIPT="$SCRIPT_DIR/../../hooks/claude-judge-continuation.sh"
 TEMP_DIR="/tmp/hook-evals-$$"
 SNAPSHOT_TEST_SCRIPT="$SCRIPT_DIR/../test-snapshot.sh"
+PROMPT_DOD_TEST_SCRIPT="$SCRIPT_DIR/../test-dod-prompt.sh"
+EXPLAIN_DOD_TEST_SCRIPT="$SCRIPT_DIR/../test-explain-dod.sh"
 
 # Configuration with environment variable overrides
 EVAL_OFFLINE=${EVAL_OFFLINE:-1}
@@ -210,9 +212,25 @@ if [ ! -x "$SNAPSHOT_TEST_SCRIPT" ]; then
     echo -e "${RED}ERROR: Snapshot test script not found or not executable: $SNAPSHOT_TEST_SCRIPT${NC}" >&2
     exit 1
 fi
+if [ ! -x "$PROMPT_DOD_TEST_SCRIPT" ]; then
+    echo -e "${RED}ERROR: DoD prompt test script not found or not executable: $PROMPT_DOD_TEST_SCRIPT${NC}" >&2
+    exit 1
+fi
+if [ ! -x "$EXPLAIN_DOD_TEST_SCRIPT" ]; then
+    echo -e "${RED}ERROR: DoD explain test script not found or not executable: $EXPLAIN_DOD_TEST_SCRIPT${NC}" >&2
+    exit 1
+fi
 
 echo "🔒 Snapshot Test"
 "$SNAPSHOT_TEST_SCRIPT"
+echo ""
+
+echo "🧾 DoD Prompt Test"
+"$PROMPT_DOD_TEST_SCRIPT"
+echo ""
+
+echo "🧾 Explain DoD Test"
+"$EXPLAIN_DOD_TEST_SCRIPT"
 echo ""
 
 # Cleanup on exit

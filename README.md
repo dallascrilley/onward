@@ -84,6 +84,26 @@ When Claude tries to stop, a separate Claude instance evaluates the context and 
 - **Failure triage** (opt-in) - writes `.claude/triage.md` with error analysis and fix suggestions
 - **Zero configuration** - works after installation
 
+## Definition of Done (DoD)
+
+You can define a project-specific Definition of Done in `.claude/redbull.local.md`.  
+The judge will consider these criteria before approving a stop.
+
+```yaml
+---
+enabled: true
+dod_enforcement: advisory   # advisory|strict
+definition_of_done:
+  - "All tests pass"
+  - "No TODO comments remain"
+  - "CHANGELOG.md updated"
+---
+```
+
+**Modes**
+- **advisory**: consider DoD; if criteria appear unmet, lean toward continuing
+- **strict**: only stop when DoD is met with evidence or a blocker requires user input
+
 ## Opt-in Features
 
 Some features require explicit activation via environment variables:
