@@ -1,8 +1,8 @@
-# Brainstorm: Features for Redbull (Double Shot Latte)
+# Brainstorm: Features for Redbull (Redbull for Claude Code)
 
 ## Focus Summary
 
-**Purpose:** Redbull (Double Shot Latte) is a Claude Code plugin that prevents premature stops by using a secondary "Judge" Claude instance to evaluate if work should continue.
+**Purpose:** Redbull (Redbull for Claude Code) is a Claude Code plugin that prevents premature stops by using a secondary "Judge" Claude instance to evaluate if work should continue.
 **Key Flows:** Intercept stop event -> Extract transcript -> Judge (LLM) evaluates -> Block or Allow stop -> Throttle checks.
 **Constraints:** Bash-based, relies on `claude` CLI, stateless (except temp files), time-based throttling (3/5min).
 **Risks/Unknowns:** "Haiku" model costs/latency, false positives (forcing continuation when user *wants* to stop), user lack of visibility into *why* it acted.

@@ -1,4 +1,4 @@
-# Feature Brainstorm: Double Shot Latte Plugin
+# Feature Brainstorm: Redbull for Claude Code Plugin
 
 ## Focus Summary
 
