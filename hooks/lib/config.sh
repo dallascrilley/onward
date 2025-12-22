@@ -1,28 +1,60 @@
 #!/bin/bash
-# config.sh - Configuration defaults
+# config.sh - Configuration defaults with env var overrides
 #
-# Loads default configuration values. Future versions will support
-# per-project settings override.
+# All settings have safe defaults. Env vars allow runtime override.
+# Invalid numeric values are ignored (fail closed to defaults).
+
+# Helper: validate and apply numeric env var override
+# Usage: _apply_numeric_override VAR_NAME DEFAULT ENV_VAR_NAME [MIN_VALUE]
+_apply_numeric_override() {
+    local var_name="$1"
+    local default="$2"
+    local env_value="$3"
+    local min_value="${4:-1}"
+
+    if [[ "$env_value" =~ ^[0-9]+$ ]] && [ "$env_value" -ge "$min_value" ]; then
+        eval "$var_name=\"$env_value\""
+    else
+        eval "$var_name=\"$default\""
+    fi
+}
 
 load_defaults() {
-    MAX_CONTINUATIONS=3
-    THROTTLE_WINDOW_SECONDS=300
-    TRANSCRIPT_CONTEXT_LINES=10
-    CLAUDE_MODEL="haiku"
-    CLAUDE_WORK_DIR="$HOME/.claude/double-shot-latte"
+    # === Throttle Configuration ===
+    # Max continuation cycles before forcing stop
+    _apply_numeric_override MAX_CONTINUATIONS 3 "${REDBULL_THROTTLE_LIMIT:-3}" 1
+    # Time window in seconds for throttle counting
+    _apply_numeric_override THROTTLE_WINDOW_SECONDS 300 "${REDBULL_THROTTLE_WINDOW_SECONDS:-300}" 10
 
-    # Decision persistence configuration (FTR-005)
+    # === Judge Configuration ===
+    # Number of transcript lines to send to judge
+    _apply_numeric_override TRANSCRIPT_CONTEXT_LINES 10 "${REDBULL_TRANSCRIPT_CONTEXT_LINES:-10}" 1
+    # Model for judge evaluation (validated models: haiku, sonnet, opus)
+    local _model="${REDBULL_JUDGE_MODEL:-haiku}"
+    case "$_model" in
+        haiku|sonnet|opus) CLAUDE_MODEL="$_model" ;;
+        *) CLAUDE_MODEL="haiku" ;;  # Invalid model, use default
+    esac
+
+    # === Dry-Run Mode ===
+    # When true: evaluate but always approve stop (never blocks)
+    case "${REDBULL_DRY_RUN:-false}" in
+        true|TRUE|1) REDBULL_DRY_RUN=true ;;
+        *) REDBULL_DRY_RUN=false ;;
+    esac
+
+    # === State Directory ===
+    CLAUDE_WORK_DIR="${REDBULL_STATE_DIR:-$HOME/.claude/redbull}"
+
+    # === Decision Persistence (FTR-005) ===
     DECISION_DIR="$CLAUDE_WORK_DIR"
     LAST_DECISION_FILE="$DECISION_DIR/last_decision.json"
     DECISION_LOG_FILE="$DECISION_DIR/decision_log.jsonl"
-    # Validate DECISION_LOG_MAX_LINES is numeric (fail closed to default 100)
-    local _max_lines="${REDBULL_LOG_MAX_LINES:-100}"
-    if [[ "$_max_lines" =~ ^[0-9]+$ ]] && [ "$_max_lines" -gt 0 ]; then
-        DECISION_LOG_MAX_LINES="$_max_lines"
-    else
-        DECISION_LOG_MAX_LINES=100
-    fi
-    DECISION_LOG_ENABLED="${REDBULL_LOG_DECISIONS:-false}"
+    _apply_numeric_override DECISION_LOG_MAX_LINES 100 "${REDBULL_LOG_MAX_LINES:-100}" 1
+    case "${REDBULL_LOG_DECISIONS:-false}" in
+        true|TRUE|1) DECISION_LOG_ENABLED=true ;;
+        *) DECISION_LOG_ENABLED=false ;;
+    esac
 }
 
 # Globals for persistence context (set during script execution)
