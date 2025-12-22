@@ -306,7 +306,11 @@ for scenario_file in "$SCENARIOS_DIR"/$SCENARIO_GLOB; do
         # Run the hook script (pass expected_decision only in offline/stub mode)
         # Capture stdout for JSON parsing, stderr separately for diagnostics
         hook_stderr=""
-        stderr_file="$TEMP_DIR/stderr-$total_scenarios-$run"
+        stderr_file=$(mktemp "$TEMP_DIR/stderr.XXXXXX") || {
+            echo -e "   ${RED}✗${NC} Run $run: FAILED (could not create temp file)"
+            fails=$((fails + 1))
+            continue
+        }
         if [ "$EVAL_OFFLINE" = "1" ]; then
             hook_output=$(echo "$hook_event" | STUB_EXPECTED_DECISION="$expected_decision" "$HOOK_SCRIPT" 2>"$stderr_file")
         else

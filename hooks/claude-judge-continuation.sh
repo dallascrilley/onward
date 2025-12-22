@@ -15,6 +15,11 @@ CLAUDE_WORK_DIR="$HOME/.claude/double-shot-latte"
 # Debug configuration (disabled by default)
 REDBULL_DEBUG="${REDBULL_DEBUG:-false}"
 
+# Verify jq is available for debug logging; silently disable if not
+if [ "$REDBULL_DEBUG" = "true" ] && ! command -v jq >/dev/null 2>&1; then
+    REDBULL_DEBUG="false"
+fi
+
 # Debug log emitter - writes compact structured JSON to stderr only
 # Logs metadata only, never transcript content or secrets
 debug_log() {
@@ -25,6 +30,26 @@ debug_log() {
     shift
     jq -cn --arg ts "$ts" --arg event "$event" \
         '$ARGS.named + {timestamp: $ts, event: $event}' "$@" >&2
+}
+
+# Safely format a value for jq --argjson (numbers)
+# Usage: json_num <value> [default]
+json_num() {
+    local val="$1"
+    local default="${2:-0}"
+    [[ "$val" =~ ^-?[0-9]+$ ]] && echo "$val" || echo "$default"
+}
+
+# Safely format a boolean for jq --argjson
+# Usage: json_bool <value> [default]
+json_bool() {
+    local val="$1"
+    local default="${2:-false}"
+    case "$val" in
+        true|TRUE|True|1) echo "true" ;;
+        false|FALSE|False|0) echo "false" ;;
+        *) echo "$default" ;;
+    esac
 }
 
 # Single output emitter - all stdout JSON goes through here
@@ -166,20 +191,20 @@ CURRENT_TIME=$(date +%s)
 
 # Log parsed event metadata (basename only for security)
 debug_log "event_parsed" \
-    --argjson stop_hook_active "$STOP_HOOK_ACTIVE" \
+    --argjson stop_hook_active "$(json_bool "$STOP_HOOK_ACTIVE" false)" \
     --arg transcript_file "$(basename "$TRANSCRIPT_PATH" 2>/dev/null || echo 'none')"
 
 # Early exit: Force stop if continuation limit reached in active stop hook cycle
 if [ "$STOP_HOOK_ACTIVE" = "true" ]; then
     throttle_read "$THROTTLE_FILE"
     debug_log "throttle_state" \
-        --argjson continue_count "$CONTINUE_COUNT" \
-        --argjson last_continue_time "$LAST_CONTINUE_TIME" \
-        --argjson current_time "$CURRENT_TIME"
+        --argjson continue_count "$(json_num "$CONTINUE_COUNT" 0)" \
+        --argjson last_continue_time "$(json_num "$LAST_CONTINUE_TIME" 0)" \
+        --argjson current_time "$(json_num "$CURRENT_TIME" 0)"
     if throttle_should_force_stop "$MAX_CONTINUATIONS" "$THROTTLE_WINDOW_SECONDS"; then
         debug_log "throttle_force_stop" \
-            --argjson continue_count "$CONTINUE_COUNT" \
-            --argjson max_continuations "$MAX_CONTINUATIONS"
+            --argjson continue_count "$(json_num "$CONTINUE_COUNT" 0)" \
+            --argjson max_continuations "$(json_num "$MAX_CONTINUATIONS" 3)"
         emit_decision "approve" "Maximum continuation cycles reached in time window, forcing stop to prevent infinite loops"
         throttle_clear "$THROTTLE_FILE"
         exit 0
@@ -224,7 +249,7 @@ RECENT_CONTEXT=$(tail -n 50 "$TRANSCRIPT_PATH" 2>/dev/null | \
 
 # Validate we got usable context
 CONTEXT_ENTRY_COUNT=$(echo "$RECENT_CONTEXT" | jq 'length // 0' 2>/dev/null || echo 0)
-debug_log "context_extracted" --argjson entry_count "$CONTEXT_ENTRY_COUNT"
+debug_log "context_extracted" --argjson entry_count "$(json_num "$CONTEXT_ENTRY_COUNT" 0)"
 
 if [ -z "$RECENT_CONTEXT" ] || [ "$RECENT_CONTEXT" = "[]" ] || [ "$RECENT_CONTEXT" = "null" ]; then
     debug_log "transcript_error" --arg reason "no_valid_entries"
@@ -280,7 +305,7 @@ CLAUDE_EXIT_CODE=$?
 
 debug_log "claude_invoked" \
     --arg model "$CLAUDE_MODEL" \
-    --argjson exit_code "$CLAUDE_EXIT_CODE"
+    --argjson exit_code "$(json_num "$CLAUDE_EXIT_CODE" 0)"
 
 # Check if claude command succeeded
 if [ $CLAUDE_EXIT_CODE -ne 0 ]; then
@@ -306,8 +331,8 @@ REASONING=$(echo "$EVALUATION_RESULT" | jq -r '.reasoning // "No reasoning provi
 # Log evaluation result (boolean only, not reasoning content)
 HAS_REASONING=$( [ -n "$REASONING" ] && [ "$REASONING" != "No reasoning provided" ] && echo true || echo false )
 debug_log "evaluation_parsed" \
-    --argjson should_continue "$( [ "$SHOULD_CONTINUE" = "true" ] && echo true || echo false )" \
-    --argjson has_reasoning "$HAS_REASONING"
+    --argjson should_continue "$(json_bool "$SHOULD_CONTINUE" false)" \
+    --argjson has_reasoning "$(json_bool "$HAS_REASONING" false)"
 
 # Make the decision based on Claude's evaluation
 if [ "$SHOULD_CONTINUE" = "true" ]; then
@@ -318,7 +343,7 @@ if [ "$SHOULD_CONTINUE" = "true" ]; then
 
     debug_log "decision" \
         --arg decision "block" \
-        --argjson throttle_count "$CONTINUE_COUNT"
+        --argjson throttle_count "$(json_num "$CONTINUE_COUNT" 0)"
 
     # Block the stop - Claude thinks it can continue
     emit_decision "block" "Claude evaluator determined continuation is appropriate: $REASONING"
