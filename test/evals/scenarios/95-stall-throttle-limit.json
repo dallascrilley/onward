@@ -1,0 +1,16 @@
+{
+  "name": "Stall: Work description with no clear direction",
+  "description": "Assistant describes work state but provides no clear direction forward. At throttle limit, stall detection would force stop.",
+  "expected_decision": false,
+  "notes": "When throttle count is at max (3) and stall is detected, the combined risk score (45+ from throttle alone) triggers stricter evaluation. Without explicit next steps, stop is appropriate.",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Debug the memory leak"
+    },
+    {
+      "role": "assistant",
+      "content": "I've analyzed the heap dumps and looked at the allocation patterns. There are several potential sources of the leak. I've been going through them one by one but haven't pinpointed the exact cause yet."
+    }
+  ]
+}
