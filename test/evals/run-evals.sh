@@ -10,11 +10,38 @@ SCENARIOS_DIR="$SCRIPT_DIR/scenarios"
 HOOK_SCRIPT="$SCRIPT_DIR/../../hooks/claude-judge-continuation.sh"
 TEMP_DIR="/tmp/hook-evals-$$"
 
+# Configuration with environment variable overrides
+EVAL_PROVIDER=${EVAL_PROVIDER:-stub}
+RUNS_PER_SCENARIO=${RUNS_PER_SCENARIO:-5}
+SCENARIO_GLOB=${SCENARIO_GLOB:-*.json}
+
+# Inject stub claude binary into PATH for fast testing (default)
+if [ "$EVAL_PROVIDER" = "stub" ]; then
+    export PATH="$SCRIPT_DIR/bin:$PATH"
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
+
+# Validate run configuration before using it
+validate_run_config() {
+    # Ensure RUNS_PER_SCENARIO is numeric
+    if ! [[ "$RUNS_PER_SCENARIO" =~ ^[0-9]+$ ]]; then
+        echo -e "${RED}ERROR: RUNS_PER_SCENARIO must be a positive integer, got '${RUNS_PER_SCENARIO}'.${NC}" >&2
+        exit 1
+    fi
+
+    # Ensure RUNS_PER_SCENARIO is at least 1
+    if [ "$RUNS_PER_SCENARIO" -lt 1 ]; then
+        echo -e "${RED}ERROR: RUNS_PER_SCENARIO must be at least 1, got '${RUNS_PER_SCENARIO}'.${NC}" >&2
+        exit 1
+    fi
+}
+
+validate_run_config
 
 # Validate hook script exists and is executable
 if [ ! -x "$HOOK_SCRIPT" ]; then
@@ -101,9 +128,11 @@ validate_scenario() {
 # Preflight: Validate all scenarios before running
 echo "Validating scenario schemas..."
 validation_failed=false
+matched_scenarios=0
 
-for scenario_file in "$SCENARIOS_DIR"/*.json; do
+for scenario_file in "$SCENARIOS_DIR"/$SCENARIO_GLOB; do
     [ ! -f "$scenario_file" ] && continue
+    matched_scenarios=$((matched_scenarios + 1))
 
     if ! validation_errors=$(validate_scenario "$scenario_file"); then
         echo -e "${RED}INVALID:${NC} $(basename "$scenario_file")"
@@ -111,6 +140,11 @@ for scenario_file in "$SCENARIOS_DIR"/*.json; do
         validation_failed=true
     fi
 done
+
+if [ "$matched_scenarios" -eq 0 ]; then
+    echo -e "${RED}ERROR: No scenarios matched SCENARIO_GLOB='$SCENARIO_GLOB' in $SCENARIOS_DIR.${NC}" >&2
+    exit 1
+fi
 
 if [ "$validation_failed" = true ]; then
     echo ""
@@ -130,7 +164,7 @@ total_passed=0
 total_failed=0
 
 # Process each scenario file
-for scenario_file in "$SCENARIOS_DIR"/*.json; do
+for scenario_file in "$SCENARIOS_DIR"/$SCENARIO_GLOB; do
     if [ ! -f "$scenario_file" ]; then
         continue
     fi
@@ -145,11 +179,11 @@ for scenario_file in "$SCENARIOS_DIR"/*.json; do
     echo "   Expected: should_continue = $expected_decision"
     echo ""
 
-    # Run the scenario 5 times
+    # Run the scenario multiple times
     passes=0
     fails=0
 
-    for run in {1..5}; do
+    for run in $(seq 1 $RUNS_PER_SCENARIO); do
         # Create transcript file from scenario (NDJSON format - one message per line)
         transcript_file="$TEMP_DIR/transcript-$total_scenarios-$run.json"
         jq -c '.transcript[]' "$scenario_file" > "$transcript_file"
@@ -163,8 +197,12 @@ for scenario_file in "$SCENARIOS_DIR"/*.json; do
                 "session_id": "eval-test-session"
             }')
 
-        # Run the hook script
-        hook_output=$(echo "$hook_event" | "$HOOK_SCRIPT" 2>&1)
+        # Run the hook script (pass expected_decision only in stub mode)
+        if [ "$EVAL_PROVIDER" = "stub" ]; then
+            hook_output=$(echo "$hook_event" | STUB_EXPECTED_DECISION="$expected_decision" "$HOOK_SCRIPT" 2>&1)
+        else
+            hook_output=$(echo "$hook_event" | "$HOOK_SCRIPT" 2>&1)
+        fi
         hook_exit_code=$?
         if [ $hook_exit_code -ne 0 ]; then
             echo -e "   ${RED}✗${NC} Run $run: HOOK EXECUTION FAILED (exit code: $hook_exit_code)"
@@ -206,10 +244,10 @@ for scenario_file in "$SCENARIOS_DIR"/*.json; do
 
     # Report scenario results
     if [ $fails -eq 0 ]; then
-        echo -e "   ${GREEN}✓ Scenario PASSED${NC} (5/5 runs correct)"
+        echo -e "   ${GREEN}✓ Scenario PASSED${NC} ($RUNS_PER_SCENARIO/$RUNS_PER_SCENARIO runs correct)"
         total_passed=$((total_passed + 1))
     else
-        echo -e "   ${RED}✗ Scenario FAILED${NC} ($passes/5 runs correct)"
+        echo -e "   ${RED}✗ Scenario FAILED${NC} ($passes/$RUNS_PER_SCENARIO runs correct)"
         total_failed=$((total_failed + 1))
     fi
 

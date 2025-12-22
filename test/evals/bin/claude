@@ -1,0 +1,29 @@
+#!/bin/bash
+# Stub claude binary for fast eval testing
+# Uses STUB_EXPECTED_DECISION env var from harness to return correct decision
+
+# Read stdin (required for compatibility but content is ignored in stub mode)
+cat > /dev/null
+
+# Use the expected decision from the harness (passed via env var)
+# This makes the stub deterministic and always correct for testing harness infrastructure
+case "$STUB_EXPECTED_DECISION" in
+    true)
+        SHOULD_CONTINUE="true"
+        REASONING="Stub: Expected continuation (STUB_EXPECTED_DECISION=true)"
+        ;;
+    false)
+        SHOULD_CONTINUE="false"
+        REASONING="Stub: Expected stop (STUB_EXPECTED_DECISION=false)"
+        ;;
+    *)
+        echo "ERROR: STUB_EXPECTED_DECISION must be 'true' or 'false', got '${STUB_EXPECTED_DECISION:-<unset>}'." >&2
+        exit 2
+        ;;
+esac
+
+# Output in streaming JSON format that the hook expects
+# The hook parses: jq '.[] | select(.type == "result") | .structured_output'
+cat << EOF
+[{"type":"result","structured_output":{"should_continue":$SHOULD_CONTINUE,"reasoning":"$REASONING"}}]
+EOF
