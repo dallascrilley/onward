@@ -163,6 +163,103 @@ total_scenarios=0
 total_passed=0
 total_failed=0
 
+# Extra validation cases for transcript file handling (not representable via scenario JSON)
+run_transcript_validation_cases() {
+    echo "🔍 Transcript Validation Cases"
+    echo "================================="
+    echo ""
+
+    local validation_dir="$TEMP_DIR/transcript-validation"
+    mkdir -p "$validation_dir"
+
+    run_case() {
+        local name="$1"
+        local transcript_path="$2"
+        local expected_decision="$3"
+        local expected_reason="$4"
+        local stub_expected="$5"
+
+        echo "🧩 Case: $name"
+        total_scenarios=$((total_scenarios + 1))
+
+        local hook_event
+        hook_event=$(jq -n \
+            --arg transcript_path "$transcript_path" \
+            '{
+                "stop_hook_active": false,
+                "transcript_path": $transcript_path,
+                "session_id": "eval-test-session"
+            }')
+
+        local hook_output
+        hook_output=$(echo "$hook_event" | STUB_EXPECTED_DECISION="$stub_expected" "$HOOK_SCRIPT" 2>&1)
+        local hook_exit_code=$?
+        if [ $hook_exit_code -ne 0 ]; then
+            echo -e "   ${RED}✗${NC} HOOK EXECUTION FAILED (exit code: $hook_exit_code)"
+            echo "      Output: $hook_output"
+            total_failed=$((total_failed + 1))
+            echo ""
+            return
+        fi
+
+        if ! echo "$hook_output" | jq -e '.decision' >/dev/null 2>&1; then
+            echo -e "   ${RED}✗${NC} INVALID HOOK RESPONSE (not valid JSON with decision)"
+            echo "      Output: $hook_output"
+            total_failed=$((total_failed + 1))
+            echo ""
+            return
+        fi
+
+        local decision reason hook_should_continue=false reason_ok=true
+        decision=$(echo "$hook_output" | jq -r '.decision')
+        reason=$(echo "$hook_output" | jq -r '.reason // "No reason provided"')
+
+        if [ "$decision" = "block" ]; then
+            hook_should_continue=true
+        fi
+
+        if [ -n "$expected_reason" ] && ! printf '%s' "$reason" | grep -Fq "$expected_reason"; then
+            reason_ok=false
+        fi
+
+        if [ "$hook_should_continue" = "$expected_decision" ] && [ "$reason_ok" = true ]; then
+            echo -e "   ${GREEN}✓${NC} PASS (decision: $decision)"
+            total_passed=$((total_passed + 1))
+        else
+            echo -e "   ${RED}✗${NC} FAIL (decision: $decision, expected should_continue: $expected_decision)"
+            echo "      Reason: $reason"
+            if [ "$reason_ok" = false ]; then
+                echo "      Expected reason to include: $expected_reason"
+            fi
+            total_failed=$((total_failed + 1))
+        fi
+        echo ""
+    }
+
+    local missing_path="$validation_dir/does-not-exist.json"
+    local empty_file="$validation_dir/empty.json"
+    local unreadable_file="$validation_dir/unreadable.json"
+    local invalid_file="$validation_dir/invalid.json"
+    local mixed_file="$validation_dir/mixed.json"
+
+    : > "$empty_file"
+    printf '%s\n' '{"role":"assistant","content":"ok"}' > "$unreadable_file"
+    chmod 000 "$unreadable_file"
+    printf '%s\n' 'not json' '}{' > "$invalid_file"
+    printf '%s\n' '{"role":"assistant","content":"ok"}' '' '}{' '{"role":"user","content":"hi"}' > "$mixed_file"
+
+    run_case "missing transcript path" "" false "No transcript path provided" "false"
+    run_case "missing transcript file" "$missing_path" false "Transcript file not found" "false"
+    run_case "unreadable transcript file" "$unreadable_file" false "Transcript file not readable" "false"
+    chmod 600 "$unreadable_file"
+    run_case "empty transcript file" "$empty_file" false "Transcript file is empty" "false"
+    run_case "invalid NDJSON only" "$invalid_file" false "No valid transcript entries found" "false"
+    run_case "mixed valid/invalid NDJSON" "$mixed_file" true "Stub: Expected continuation" "true"
+
+    echo "---"
+    echo ""
+}
+
 # Process each scenario file
 for scenario_file in "$SCENARIOS_DIR"/$SCENARIO_GLOB; do
     if [ ! -f "$scenario_file" ]; then
@@ -255,6 +352,11 @@ for scenario_file in "$SCENARIOS_DIR"/$SCENARIO_GLOB; do
     echo "---"
     echo ""
 done
+
+# Only run file/NDJSON guard cases in stub mode (avoids real model calls)
+if [ "$EVAL_PROVIDER" = "stub" ]; then
+    run_transcript_validation_cases
+fi
 
 # Final summary
 echo "================================="
