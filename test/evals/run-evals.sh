@@ -445,7 +445,6 @@ for scenario_file in "$SCENARIOS_DIR"/$SCENARIO_GLOB; do
     description=$(jq -r '.description' "$scenario_file")
     expected_decision=$(jq -r '.expected_decision' "$scenario_file")
     expected_v2_fields=$(jq -c '.expected_v2_fields // null' "$scenario_file")
-    dod_config=$(jq -c '.dod_config // null' "$scenario_file")
 
     echo "📝 Scenario: $scenario_name"
     echo "   Description: $description"
@@ -455,28 +454,6 @@ for scenario_file in "$SCENARIOS_DIR"/$SCENARIO_GLOB; do
     # Run the scenario multiple times
     passes=0
     fails=0
-
-    # Set up DoD config if present in scenario
-    dod_settings_path=""
-    if [ -n "$dod_config" ] && [ "$dod_config" != "null" ]; then
-        dod_settings_dir="$TEMP_DIR/dod-config-$total_scenarios/.claude"
-        mkdir -p "$dod_settings_dir"
-        dod_settings_path="$dod_settings_dir/redbull.local.md"
-
-        # Build YAML frontmatter from dod_config
-        {
-            echo "---"
-            echo "enabled: true"
-            echo "aggressiveness: high"
-            dod_enforcement=$(echo "$dod_config" | jq -r '.dod_enforcement // "advisory"')
-            echo "dod_enforcement: $dod_enforcement"
-            echo "definition_of_done:"
-            echo "$dod_config" | jq -r '.definition_of_done[]? // empty' | while read -r rule; do
-                echo "  - $rule"
-            done
-            echo "---"
-        } > "$dod_settings_path"
-    fi
 
     for run in $(seq 1 $RUNS_PER_SCENARIO); do
         # Create transcript file from scenario (NDJSON format - one message per line)
@@ -506,19 +483,9 @@ for scenario_file in "$SCENARIOS_DIR"/$SCENARIO_GLOB; do
             if [ -n "$expected_v2_fields" ] && [ "$expected_v2_fields" != "null" ]; then
                 stub_v2_fields=$(generate_stub_v2_fields "$expected_v2_fields" "$expected_decision")
             fi
-            # Pass DoD settings path if configured
-            if [ -n "$dod_settings_path" ]; then
-                hook_output=$(echo "$hook_event" | REDBULL_SETTINGS_PATH="$dod_settings_path" STUB_EXPECTED_DECISION="$expected_decision" STUB_V2_FIELDS="$stub_v2_fields" "$HOOK_SCRIPT" 2>"$stderr_file")
-            else
-                hook_output=$(echo "$hook_event" | STUB_EXPECTED_DECISION="$expected_decision" STUB_V2_FIELDS="$stub_v2_fields" "$HOOK_SCRIPT" 2>"$stderr_file")
-            fi
+            hook_output=$(echo "$hook_event" | STUB_EXPECTED_DECISION="$expected_decision" STUB_V2_FIELDS="$stub_v2_fields" "$HOOK_SCRIPT" 2>"$stderr_file")
         else
-            # Pass DoD settings path if configured
-            if [ -n "$dod_settings_path" ]; then
-                hook_output=$(echo "$hook_event" | REDBULL_SETTINGS_PATH="$dod_settings_path" "$HOOK_SCRIPT" 2>"$stderr_file")
-            else
-                hook_output=$(echo "$hook_event" | "$HOOK_SCRIPT" 2>"$stderr_file")
-            fi
+            hook_output=$(echo "$hook_event" | "$HOOK_SCRIPT" 2>"$stderr_file")
         fi
         hook_exit_code=$?
         hook_stderr=$(cat "$stderr_file" 2>/dev/null)
