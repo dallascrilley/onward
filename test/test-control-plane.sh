@@ -34,6 +34,16 @@ echo "📋 Test: Config defaults load correctly"
 
 # Source config and check defaults
 (
+    # Unset any inherited env vars to test true defaults
+    unset REDBULL_THROTTLE_LIMIT
+    unset REDBULL_THROTTLE_WINDOW_SECONDS
+    unset REDBULL_TRANSCRIPT_CONTEXT_LINES
+    unset REDBULL_JUDGE_MODEL
+    unset REDBULL_DRY_RUN
+    unset REDBULL_STATE_DIR
+    unset REDBULL_LOG_MAX_LINES
+    unset REDBULL_LOG_DECISIONS
+
     source "$SCRIPT_DIR/../hooks/lib/config.sh"
     load_defaults
     [ "$MAX_CONTINUATIONS" = "3" ] || exit 1
