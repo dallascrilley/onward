@@ -56,15 +56,43 @@ if [ "$STOP_HOOK_ACTIVE" = "true" ]; then
     fi
 fi
 
-# Check if we have a transcript path
-if [ -z "$TRANSCRIPT_PATH" ] || [ ! -f "$TRANSCRIPT_PATH" ]; then
-    emit_decision "approve" "No transcript available for evaluation"
+# --- Transcript file validation (fail closed: approve stop on any error) ---
+if [ -z "$TRANSCRIPT_PATH" ]; then
+    emit_decision "approve" "No transcript path provided"
     exit 0
 fi
 
-# Extract the last few exchanges from the transcript (Claude's response + context)
-# We want the most recent assistant message and some preceding context
-RECENT_CONTEXT=$(tail -n 10 "$TRANSCRIPT_PATH" | jq -s '.')
+if [ ! -f "$TRANSCRIPT_PATH" ]; then
+    emit_decision "approve" "Transcript file not found"
+    exit 0
+fi
+
+if [ ! -r "$TRANSCRIPT_PATH" ]; then
+    emit_decision "approve" "Transcript file not readable"
+    exit 0
+fi
+
+if [ ! -s "$TRANSCRIPT_PATH" ]; then
+    emit_decision "approve" "Transcript file is empty"
+    exit 0
+fi
+
+# --- Extract last 10 valid NDJSON entries (tolerant of empty/invalid lines) ---
+# Read more lines than needed to ensure we get 10 valid ones after filtering
+RECENT_CONTEXT=$(tail -n 50 "$TRANSCRIPT_PATH" 2>/dev/null | \
+    grep -v '^[[:space:]]*$' | \
+    while IFS= read -r line; do
+        # Only output lines that are valid JSON
+        printf '%s\n' "$line" | jq -e '.' >/dev/null 2>&1 && printf '%s\n' "$line"
+    done | \
+    tail -n 10 | \
+    jq -s '.' 2>/dev/null)
+
+# Validate we got usable context
+if [ -z "$RECENT_CONTEXT" ] || [ "$RECENT_CONTEXT" = "[]" ] || [ "$RECENT_CONTEXT" = "null" ]; then
+    emit_decision "approve" "No valid transcript entries found"
+    exit 0
+fi
 
 # Create a JSON schema for the response
 JSON_SCHEMA='{"type":"object","properties":{"should_continue":{"type":"boolean"},"reasoning":{"type":"string"}},"required":["should_continue","reasoning"]}'
