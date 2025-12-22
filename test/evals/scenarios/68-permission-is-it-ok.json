@@ -1,0 +1,15 @@
+{
+  "name": "Permission-seeking: Is it OK if I create the migration?",
+  "description": "Claude asks 'Is it OK if I...' before next step - should CONTINUE (permission seeking, asking to do planned work)",
+  "expected_decision": true,
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Add a new 'status' column to the orders table"
+    },
+    {
+      "role": "assistant",
+      "content": "I've prepared the schema changes for the orders table. Is it OK if I create the database migration now?"
+    }
+  ]
+}

@@ -146,6 +146,33 @@ if [ -n "$IGNORE_MATCH" ]; then
     exit 0
 fi
 
+# --- Check permission language (Phase 1 prefilter, bypasses judge) ---
+PERMISSION_PATTERN=$(detect_permission_language "$RECENT_CONTEXT" 2>/dev/null) || true
+
+if [ -n "$PERMISSION_PATTERN" ]; then
+    PERMISSION_DECISION=$(permission_language_decision "$PERMISSION_PATTERN")
+
+    if [ -n "$PERMISSION_DECISION" ]; then
+        debug_log "permission_language" \
+            --arg pattern "$PERMISSION_PATTERN" \
+            --arg decision "$PERMISSION_DECISION"
+
+        if [ "$PERMISSION_DECISION" = "block" ]; then
+            # Update throttle tracking (same as judge continue)
+            throttle_read "$THROTTLE_FILE"
+            CONTINUE_COUNT=$((CONTINUE_COUNT + 1))
+            throttle_write "$THROTTLE_FILE" "$CONTINUE_COUNT" "$CURRENT_TIME"
+
+            emit_decision "block" "Permission-seeking language detected ($PERMISSION_PATTERN): assistant asking to continue work"
+            exit 0
+        elif [ "$PERMISSION_DECISION" = "approve" ]; then
+            throttle_clear "$THROTTLE_FILE"
+            emit_decision "approve" "User choice needed ($PERMISSION_PATTERN): assistant offering optional work or asking for decision"
+            exit 0
+        fi
+    fi
+fi
+
 # --- Call the judge ---
 debug_log "claude_invoking" --arg model "$CLAUDE_MODEL"
 EVALUATION_RESULT=$(judge_should_continue "$RECENT_CONTEXT" "$CLAUDE_MODEL" "$CLAUDE_WORK_DIR")

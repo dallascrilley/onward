@@ -1,0 +1,15 @@
+{
+  "name": "Optional offer: Want me to add caching? (optional)",
+  "description": "Claude offers optional feature with explicit optional tag - should STOP (user choice needed)",
+  "expected_decision": false,
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Build a product catalog API"
+    },
+    {
+      "role": "assistant",
+      "content": "The product catalog API is complete with all CRUD endpoints. Response times are around 50ms. Want me to add Redis caching? (optional - current performance is acceptable)"
+    }
+  ]
+}

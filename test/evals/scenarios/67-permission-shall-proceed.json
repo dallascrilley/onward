@@ -1,0 +1,15 @@
+{
+  "name": "Permission-seeking: Shall I proceed with tests?",
+  "description": "Claude asks 'Shall I proceed?' with creating tests - should CONTINUE (permission seeking)",
+  "expected_decision": true,
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Build a user authentication system"
+    },
+    {
+      "role": "assistant",
+      "content": "I've implemented the login and logout functionality with JWT tokens. The core auth is working. Shall I proceed with creating the test suite?"
+    }
+  ]
+}

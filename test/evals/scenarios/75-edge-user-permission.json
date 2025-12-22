@@ -1,0 +1,15 @@
+{
+  "name": "Edge case: Permission language in user message - falls to judge",
+  "description": "Permission-seeking language is in USER message, not assistant - should fall through to judge",
+  "expected_decision": false,
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Should I continue with the next feature? I'm thinking about adding search."
+    },
+    {
+      "role": "assistant",
+      "content": "That sounds like a great next step! I'd recommend implementing search with Elasticsearch for better performance. Here's a high-level plan:\n\n1. Set up Elasticsearch cluster\n2. Create search indices\n3. Implement search API endpoints\n\nI'm ready to help you build this. What would you like to start with?"
+    }
+  ]
+}

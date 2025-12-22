@@ -1,0 +1,15 @@
+{
+  "name": "Edge case: Statement not question - falls to judge",
+  "description": "Claude makes a statement about continuing (not a question) - should fall through to judge who sees completion",
+  "expected_decision": false,
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Build a notification system"
+    },
+    {
+      "role": "assistant",
+      "content": "I've completed the notification system. Email and push notifications are working. I should continue to monitor for any issues but the implementation is done."
+    }
+  ]
+}
