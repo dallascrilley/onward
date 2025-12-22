@@ -23,19 +23,22 @@ Make refactoring safe and high-velocity by first restoring **trustworthy regress
 ## Workstreams (Designed for Parallel Implementation)
 
 ### Stream A — Regression Harness (unblocks everything)
-- REF-001, REF-012
+- ~~REF-001~~ ✓, ~~REF-012~~ ✓
 
 ### Stream B — Hook Core Safety & Robustness (validate after Stream A)
-- REF-003, REF-002, REF-011, REF-006, REF-010
+- ~~REF-003~~ ✓, ~~REF-002~~ ✓, ~~REF-011~~ ✓, ~~REF-006~~ ✓, ~~REF-010~~ ✓
 
 ### Stream C — Path + Docs Alignment (can run in parallel; coordinate with Stream A)
-- REF-007, REF-019
+- ~~REF-007~~ ✓, REF-019
 
 ### Stream D — Debuggability (parallel; strictly opt-in)
-- REF-020
+- ~~REF-020~~ ✓
 
 ### Stream E — Deterministic Local Testing (parallel; mostly harness-side)
-- REF-016
+- ~~REF-016~~ ✓
+
+### Uncategorized
+- ~~REF-013~~ ✓
 
 ## Dependency / Blockers Map
 
@@ -63,22 +66,79 @@ Recommended merge order after Stream A is green:
 
 ## Work Item Matrix (Top 12)
 
-| ID | Stream | Primary Files | Can Start Now | Merge Blockers | Proving Commands |
+| ID | Stream | Primary Files | Status | Merge Blockers | Proving Commands |
 |---|---|---|---|---|---|
-| REF-001 | A | `test/evals/run-evals.sh` | Yes | None | `./test/evals/run-evals.sh` |
-| REF-003 | B | `hooks/claude-judge-continuation.sh` | Yes | REF-001 | `./test/evals/run-evals.sh`, `./test/test-working-directory.sh` |
-| REF-002 | B | `hooks/claude-judge-continuation.sh` | Yes | REF-001 | `./test/evals/run-evals.sh`, `./test/test-working-directory.sh` |
-| REF-007 | C | `test/evals/run-evals.sh`, `hooks/hooks.json`, `RELENG.md`, `CLAUDE.md` | Yes | Coordinate with REF-001 | `./test/evals/run-evals.sh` |
-| REF-013 | A/B | `hooks/claude-judge-continuation.sh`, `test/` | Yes | REF-001 | `./test/evals/run-evals.sh` + snapshot script |
-| REF-011 | B | `hooks/claude-judge-continuation.sh` | Yes | REF-001 (and ideally REF-003) | `./test/evals/run-evals.sh` |
-| REF-019 | C | `RELENG.md`, `CLAUDE.md`, `README.md` | Yes | Coordinate with REF-001 | `rg \"scripts/\" -n` + `./test/evals/run-evals.sh` |
-| REF-012 | A | `test/evals/run-evals.sh` | Yes | None | `./test/evals/run-evals.sh` |
-| REF-020 | D | `hooks/claude-judge-continuation.sh` | Yes | REF-001 | `./test/evals/run-evals.sh` |
-| REF-006 | B | `hooks/claude-judge-continuation.sh` | Yes | REF-001 | `./test/evals/run-evals.sh` |
-| REF-016 | E | `test/evals/` (+ optional hook env seams) | Yes | REF-001 | mock-mode script + `./test/evals/run-evals.sh` |
-| REF-010 | B | `hooks/claude-judge-continuation.sh` | Yes | REF-001 | `./test/evals/run-evals.sh` |
+| REF-019 | C | `RELENG.md`, `CLAUDE.md`, `README.md` | Pending | Coordinate with REF-001 | `rg \"scripts/\" -n` + `./test/evals/run-evals.sh` |
 
 ## Deliverables (Files to be Created by This Plan)
 
 - One markdown plan per refactor item (see `docs/plans/2025-12-21-refactoring-workplan/`).
+
+---
+
+## ✅ Completed Items (Merged to main)
+
+### Stream A — Regression Harness
+
+| ID | PR | Commit | Description | Merged |
+|---|---|---|---|---|
+| REF-001 | #1 | e5df2d4 | fix: Repair eval harness hook script path and error handling | 2025-12-21 |
+| REF-012 | #4 | 6cb9bcb | feat: speed up eval suite with stub claude binary | 2025-12-21 |
+
+**Status:** Harness baseline established. All regression signals trustworthy. Unblocked all dependent streams.
+
+### Stream B — Hook Core Safety & Robustness
+
+| ID | PR | Commit | Description | Merged |
+|---|---|---|---|---|
+| REF-003 | #3 | 6bdbf6c | refactor: Normalize decision output via single emit_decision helper | 2025-12-21 |
+| REF-002 | #6 | 4abb575 | refactor: Extract configuration constants to top of hook script | 2025-12-21 |
+| REF-006 | #5 | 4b4ca62 | refactor: Refactor throttle helpers in judge continuation | 2025-12-21 |
+| REF-011 | #7 | 5a8f32a | feat: Tighten input validation boundaries | 2025-12-21 |
+| REF-010 | #8 | dc6d212 | feat: improve transcript extraction robustness + Add eval coverage | 2025-12-21 |
+
+**Status:** Hook core hardened with:
+- Centralized decision emission (REF-003)
+- Configuration constant extraction (REF-002)
+- Refactored throttle logic with helper functions (REF-006)
+- Input validation boundaries tightened (REF-011)
+- Transcript extraction made robust with validation + eval coverage (REF-010)
+
+### Stream C — Path + Docs Alignment
+
+| ID | PR | Commit | Description | Merged |
+|---|---|---|---|---|
+| REF-007 | #9 | c916909 | REF-007: Centralize and parameterize script paths | 2025-12-22 |
+
+**Status:** Script paths centralized and parameterized for consistency across documentation and code.
+
+### Stream D — Debuggability
+
+| ID | PR | Commit | Description | Merged |
+|---|---|---|---|---|
+| REF-020 | #12 | ff1f6e1 | feat: Add optional structured debug logging | 2025-12-22 |
+
+**Status:** Structured debug logging added with opt-in mode for troubleshooting continuation decisions.
+
+### Stream E — Deterministic Local Testing
+
+| ID | PR | Commit | Description | Merged |
+|---|---|---|---|---|
+| REF-016 | #11 | 21602cb | REF-016: Add opt-in offline eval mode | 2025-12-22 |
+
+**Status:** Offline evaluation mode enabled for deterministic local testing without Claude API calls.
+
+### Uncategorized
+
+| ID | PR/Commit | Description | Merged |
+|---|---|---|---|
+| REF-013 | ada9ab2 | feat: Add snapshot tests for prompt and schema | 2025-12-22 |
+
+**Status:** Snapshot tests added for prompt and schema validation robustness.
+
+### Remaining Items
+
+| Stream | Items | Status |
+|---|---|---|
+| C (Path + Docs) | REF-019 | Pending (docs sync) |
 
