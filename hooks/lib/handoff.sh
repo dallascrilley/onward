@@ -1,0 +1,159 @@
+#!/bin/bash
+# handoff.sh - Write handoff snapshot on approved stop
+#
+# Writes .claude/handoff.md in the current working directory when a session
+# ends with an approved stop. Provides context for the next session.
+#
+# Silent failures - never breaks the hook.
+
+# Max characters per message content in the context section
+HANDOFF_MAX_CONTENT_CHARS=200
+# Max lines for git diff output
+HANDOFF_MAX_GIT_FILES=50
+
+# Write handoff snapshot if conditions are met
+# Args: decision session_id reason recent_context_json_array
+handoff_write_if_needed() {
+    local decision="$1"
+    local session_id="$2"
+    local reason="$3"
+    local recent_context="$4"
+
+    # Only write on approved stops (not blocked)
+    [ "$decision" = "approve" ] || return 0
+
+    # Never run in judge mode
+    [ "${CLAUDE_HOOK_JUDGE_MODE:-false}" = "true" ] && return 0
+
+    # Need session_id and reason at minimum
+    [ -n "$session_id" ] || return 0
+    [ -n "$reason" ] || return 0
+
+    # Build and write the handoff
+    _handoff_build_and_write "$session_id" "$reason" "$recent_context"
+}
+
+# Internal: Build and write the handoff markdown
+_handoff_build_and_write() {
+    local session_id="$1"
+    local reason="$2"
+    local recent_context="$3"
+    local timestamp
+    local handoff_content
+    local handoff_dir=".claude"
+    local handoff_file="$handoff_dir/handoff.md"
+
+    timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    # Ensure .claude directory exists
+    mkdir -p "$handoff_dir" 2>/dev/null || return 0
+
+    # Build the handoff content
+    handoff_content="# Redbull Handoff
+
+**Session:** $session_id
+**Stopped:** $timestamp
+
+## Stop Reason
+
+$reason
+"
+
+    # Add recent context if available
+    if [ -n "$recent_context" ] && [ "$recent_context" != "null" ] && [ "$recent_context" != "[]" ]; then
+        local context_section
+        context_section=$(_handoff_format_context "$recent_context")
+        if [ -n "$context_section" ]; then
+            handoff_content="${handoff_content}
+## Recent Context
+
+$context_section"
+        fi
+    fi
+
+    # Add git info if in a git repo
+    if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        local git_section
+        git_section=$(_handoff_git_section)
+        if [ -n "$git_section" ]; then
+            handoff_content="${handoff_content}
+## Git Status
+
+$git_section"
+        fi
+    fi
+
+    # Write atomically
+    local temp_file
+    temp_file=$(mktemp "$handoff_file.tmp.XXXXXX" 2>/dev/null) || return 0
+    if printf '%s\n' "$handoff_content" > "$temp_file"; then
+        mv -f "$temp_file" "$handoff_file" 2>/dev/null || rm -f "$temp_file"
+    else
+        rm -f "$temp_file"
+    fi
+}
+
+# Internal: Format recent context as markdown list
+_handoff_format_context() {
+    local context_json="$1"
+    local result=""
+
+    # Parse each message and format as markdown
+    local count
+    count=$(echo "$context_json" | jq -r 'length' 2>/dev/null) || return 0
+    [ "$count" -gt 0 ] || return 0
+
+    local i=0
+    while [ "$i" -lt "$count" ]; do
+        local role content truncated
+        role=$(echo "$context_json" | jq -r ".[$i].role // \"unknown\"" 2>/dev/null)
+        content=$(echo "$context_json" | jq -r ".[$i].content // \"\"" 2>/dev/null)
+
+        # Truncate content if too long
+        if [ ${#content} -gt "$HANDOFF_MAX_CONTENT_CHARS" ]; then
+            truncated="${content:0:$HANDOFF_MAX_CONTENT_CHARS}..."
+        else
+            truncated="$content"
+        fi
+
+        # Replace newlines with spaces for single-line display
+        truncated=$(printf '%s' "$truncated" | tr '\n' ' ' | tr -s ' ')
+
+        result="${result}- **${role}:** ${truncated}
+"
+        i=$((i + 1))
+    done
+
+    printf '%s' "$result"
+}
+
+# Internal: Build git status section
+_handoff_git_section() {
+    local branch changed_files result=""
+
+    # Get current branch
+    branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+    if [ -n "$branch" ]; then
+        result="**Branch:** $branch
+"
+    fi
+
+    # Get changed files (staged + unstaged)
+    changed_files=$(git diff --name-only HEAD 2>/dev/null | head -n "$HANDOFF_MAX_GIT_FILES")
+    if [ -z "$changed_files" ]; then
+        # Try without HEAD for new repos
+        changed_files=$(git diff --name-only 2>/dev/null | head -n "$HANDOFF_MAX_GIT_FILES")
+    fi
+
+    if [ -n "$changed_files" ]; then
+        result="${result}
+**Changed files:**
+"
+        while IFS= read -r file; do
+            result="${result}- $file
+"
+        done <<< "$changed_files"
+    fi
+
+    printf '%s' "$result"
+}

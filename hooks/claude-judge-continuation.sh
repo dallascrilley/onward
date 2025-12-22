@@ -16,6 +16,7 @@ source "$SCRIPT_DIR/lib/judge.sh"
 source "$SCRIPT_DIR/lib/settings.sh"
 source "$SCRIPT_DIR/lib/ignore.sh"
 source "$SCRIPT_DIR/lib/prompt.sh"
+source "$SCRIPT_DIR/lib/handoff.sh"
 
 # Load default configuration
 load_defaults
@@ -202,6 +203,7 @@ if [ "$SHOULD_CONTINUE" = "true" ]; then
         --argjson throttle_count "$(json_num "$CONTINUE_COUNT" 0)"
 
     # Block the stop - Claude thinks it can continue
+    handoff_write_if_needed "block" "$SESSION_ID" "Claude evaluator determined continuation is appropriate: $REASONING" "$RECENT_CONTEXT"
     emit_decision "block" "Claude evaluator determined continuation is appropriate: $REASONING"
 else
     # Clear throttle file since we're allowing a legitimate stop
@@ -212,6 +214,7 @@ else
         --argjson throttle_count 0
 
     # Allow the stop - Claude thinks stopping is appropriate
+    handoff_write_if_needed "approve" "$SESSION_ID" "Claude evaluator determined stopping is appropriate: $REASONING" "$RECENT_CONTEXT"
     emit_decision "approve" "Claude evaluator determined stopping is appropriate: $REASONING"
 fi
 
