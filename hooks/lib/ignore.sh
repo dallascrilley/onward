@@ -53,8 +53,8 @@ ignore_should_approve_stop() {
         # Skip empty lines and comments
         [[ -z "$pattern" || "$pattern" =~ ^[[:space:]]*# ]] && continue
 
-        # Literal substring match (grep -F)
-        if printf '%s' "$transcript_text" | grep -qF "$pattern"; then
+        # Literal substring match (grep -F, -- prevents patterns starting with - from being interpreted as options)
+        if printf '%s' "$transcript_text" | grep -qF -- "$pattern"; then
             echo "$pattern"
             return 0
         fi
