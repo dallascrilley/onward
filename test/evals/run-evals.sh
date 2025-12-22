@@ -14,7 +14,7 @@ HOOK_SCRIPT="$SCRIPT_DIR/../../hooks/claude-judge-continuation.sh"
 TEMP_DIR="/tmp/hook-evals-$$"
 
 # Configuration with environment variable overrides
-EVAL_OFFLINE=${EVAL_OFFLINE:-0}
+EVAL_OFFLINE=${EVAL_OFFLINE:-1}
 RUNS_PER_SCENARIO=${RUNS_PER_SCENARIO:-5}
 SCENARIO_GLOB=${SCENARIO_GLOB:-*.json}
 
