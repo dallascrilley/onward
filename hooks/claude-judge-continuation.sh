@@ -170,7 +170,8 @@ if [ -n "$PERMISSION_PATTERN" ]; then
             # Update throttle tracking (same as judge continue)
             throttle_read "$THROTTLE_FILE"
             CONTINUE_COUNT=$((CONTINUE_COUNT + 1))
-            throttle_write "$THROTTLE_FILE" "$CONTINUE_COUNT" "$CURRENT_TIME"
+            CURRENT_CONTEXT_HASH=$(compute_context_hash "$RECENT_CONTEXT" 2>/dev/null) || true
+            throttle_write "$THROTTLE_FILE" "$CONTINUE_COUNT" "$CURRENT_TIME" "$CURRENT_CONTEXT_HASH"
 
             emit_decision "block" "Permission-seeking language detected ($PERMISSION_PATTERN): assistant asking to continue work"
             exit 0
@@ -224,7 +225,7 @@ fi
 # --- Stall Detection (Phase 5) ---
 # Compute context hash and detect stall signals before judge call
 CURRENT_CONTEXT_HASH=$(compute_context_hash "$RECENT_CONTEXT" 2>/dev/null) || true
-STALL_SIGNAL=""
+STALL_SIGNALS=""
 STALL_RISK=0
 CONTEXT_UNCHANGED=0
 CONFIDENCE_DECLINING=0
@@ -236,17 +237,16 @@ throttle_read "$THROTTLE_FILE"
 if [ -n "$CURRENT_CONTEXT_HASH" ]; then
     # Detect stall from decision log
     DECISION_LOG_FILE="${DECISION_DIR:-$HOME/.claude/redbull}/decision_log.jsonl"
-    STALL_SIGNAL=$(detect_stall "$CURRENT_CONTEXT_HASH" "$DECISION_LOG_FILE" 2>/dev/null) || true
+    STALL_SIGNALS=$(detect_stall "$CURRENT_CONTEXT_HASH" "$DECISION_LOG_FILE" 2>/dev/null) || true
 
-    if [ -n "$STALL_SIGNAL" ]; then
-        case "$STALL_SIGNAL" in
-            context_unchanged) CONTEXT_UNCHANGED=1 ;;
-            confidence_declining) CONFIDENCE_DECLINING=1 ;;
-            same_category_repeated) CATEGORY_REPEAT_COUNT=3 ;;
-        esac
+    if [ -n "$STALL_SIGNALS" ] && [ "$STALL_SIGNALS" != "null" ]; then
+        # Parse JSON signal flags
+        CONTEXT_UNCHANGED=$(echo "$STALL_SIGNALS" | jq -r '.context_unchanged // 0')
+        CONFIDENCE_DECLINING=$(echo "$STALL_SIGNALS" | jq -r '.confidence_declining // 0')
+        CATEGORY_REPEAT_COUNT=$(echo "$STALL_SIGNALS" | jq -r '.category_repeat_count // 0')
 
         debug_log "stall_detected" \
-            --arg signal "$STALL_SIGNAL" \
+            --argjson signals "$STALL_SIGNALS" \
             --arg context_hash "$CURRENT_CONTEXT_HASH"
     fi
 
