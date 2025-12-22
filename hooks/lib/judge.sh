@@ -193,6 +193,17 @@ permission_language_decision() {
 # Detects clear stop/continue signals via pattern matching
 # Runs AFTER Phase 1 permission language check
 # Returns signal type or empty string if no match
+#
+# Signal priority (first match wins):
+#   1. asking_for_clarification (stop)
+#   2. missing_information (stop)
+#   3. explicit_next_steps (continue)
+#   4. stated_todo_items (continue)
+#
+# Deferred signals (handled by Phase 1 or judge):
+#   - asking_for_approval: Phase 1 explicit_choice_required covers this
+#   - asking_for_decision: Phase 1 explicit_choice_required covers this
+#   - offering_optional_work: Phase 1 optional_offer (with framing) covers this
 
 # Detect heuristic signals from recent context
 # Args: recent_context (JSON array via stdin or $1)
@@ -286,10 +297,10 @@ build_heuristic_evaluation() {
     local decision="$3"
 
     local decision_category
-    local should_continue
+    local should_continue_bool
 
     if [ "$should_stop" = "true" ]; then
-        should_continue="false"
+        should_continue_bool=false
         case "$signal" in
             asking_for_clarification)
                 decision_category="waiting_for_user"
@@ -302,13 +313,13 @@ build_heuristic_evaluation() {
                 ;;
         esac
     else
-        should_continue="true"
+        should_continue_bool=true
         decision_category="explicit_continuation"
     fi
 
-    # Build JSON with jq
+    # Build JSON with jq (use unquoted boolean for --argjson)
     jq -nc \
-        --argjson should_continue "$should_continue" \
+        --argjson should_continue "$should_continue_bool" \
         --arg reasoning "Heuristic detected signal '$signal' - $decision without judge" \
         --arg decision_category "$decision_category" \
         --arg signal "$signal" \
