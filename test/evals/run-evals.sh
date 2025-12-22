@@ -36,8 +36,9 @@ validate_scenario() {
     local errors=()
 
     # Check file is valid JSON
-    if ! jq empty "$scenario_file" 2>/dev/null; then
-        echo "Invalid JSON"
+    local jq_error
+    if ! jq_error=$(jq empty "$scenario_file" 2>&1); then
+        echo "Invalid JSON: $jq_error"
         return 1
     fi
 
