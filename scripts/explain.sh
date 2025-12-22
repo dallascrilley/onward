@@ -136,6 +136,47 @@ if [[ "$VERBOSE" == "true" ]]; then
         echo ""
         echo "  Claude's reasoning:"
         echo "$EVAL_REASONING" | fold -s -w 66 | sed 's/^/    /'
+
+        # v2 fields (optional - only display if present)
+        CONFIDENCE=$(echo "$DECISION_JSON" | jq -r '.evaluation.confidence // empty')
+        CATEGORY=$(echo "$DECISION_JSON" | jq -r '.evaluation.decision_category // empty')
+        RISK_LEVEL=$(echo "$DECISION_JSON" | jq -r '.evaluation.risk_level // empty')
+        SIGNALS=$(echo "$DECISION_JSON" | jq -r '.evaluation.signals // empty')
+        REASONS=$(echo "$DECISION_JSON" | jq -r '.evaluation.reasons // empty')
+
+        # Only show v2 section if at least one v2 field exists
+        if [[ -n "$CONFIDENCE" || -n "$CATEGORY" || -n "$RISK_LEVEL" || -n "$SIGNALS" ]]; then
+            echo ""
+            echo "v2 Metadata:"
+
+            if [[ -n "$CONFIDENCE" && "$CONFIDENCE" != "null" ]]; then
+                # Format confidence as percentage
+                CONFIDENCE_PCT=$(echo "$CONFIDENCE * 100" | bc 2>/dev/null | cut -d. -f1)
+                if [[ -n "$CONFIDENCE_PCT" ]]; then
+                    echo "  Confidence:      ${CONFIDENCE_PCT}% ($CONFIDENCE)"
+                else
+                    echo "  Confidence:      $CONFIDENCE"
+                fi
+            fi
+
+            if [[ -n "$CATEGORY" && "$CATEGORY" != "null" ]]; then
+                echo "  Category:        $CATEGORY"
+            fi
+
+            if [[ -n "$RISK_LEVEL" && "$RISK_LEVEL" != "null" ]]; then
+                echo "  Risk Level:      $RISK_LEVEL"
+            fi
+
+            if [[ -n "$SIGNALS" && "$SIGNALS" != "null" && "$SIGNALS" != "[]" ]]; then
+                echo "  Signals:"
+                echo "$DECISION_JSON" | jq -r '.evaluation.signals[]? // empty' | sed 's/^/    - /'
+            fi
+
+            if [[ -n "$REASONS" && "$REASONS" != "null" && "$REASONS" != "[]" ]]; then
+                echo "  Reasons:"
+                echo "$DECISION_JSON" | jq -r '.evaluation.reasons[]? // empty' | sed 's/^/    - /'
+            fi
+        fi
     elif [[ "$EVAL_RAW_EXISTS" == "true" ]]; then
         # evaluation_raw exists when the evaluation response wasn't valid JSON
         EVAL_RAW=$(echo "$DECISION_JSON" | jq -r '.evaluation_raw // "N/A"')

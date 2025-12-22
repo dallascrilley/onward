@@ -1,6 +1,7 @@
 #!/bin/bash
 # Stub claude binary for fast eval testing
 # Uses STUB_EXPECTED_DECISION env var from harness to return correct decision
+# Returns v2 schema fields (confidence, decision_category, signals, risk_level)
 
 # Read stdin (required for compatibility but content is ignored in stub mode)
 cat > /dev/null
@@ -11,10 +12,20 @@ case "$STUB_EXPECTED_DECISION" in
     true)
         SHOULD_CONTINUE="true"
         REASONING="Stub: Expected continuation (STUB_EXPECTED_DECISION=true)"
+        CONFIDENCE="0.92"
+        CATEGORY="explicit_continuation"
+        SIGNALS='["explicit_next_steps","incomplete_implementation"]'
+        RISK="low"
+        REASONS='["Stub mode: expected continuation","Test infrastructure validation"]'
         ;;
     false)
         SHOULD_CONTINUE="false"
         REASONING="Stub: Expected stop (STUB_EXPECTED_DECISION=false)"
+        CONFIDENCE="0.88"
+        CATEGORY="task_completion"
+        SIGNALS='["explicit_completion"]'
+        RISK="low"
+        REASONS='["Stub mode: expected stop","Test infrastructure validation"]'
         ;;
     *)
         echo "ERROR: STUB_EXPECTED_DECISION must be 'true' or 'false', got '${STUB_EXPECTED_DECISION:-<unset>}'." >&2
@@ -24,6 +35,7 @@ esac
 
 # Output in streaming JSON format that the hook expects
 # The hook parses: jq '.[] | select(.type == "result") | .structured_output'
+# v2 schema includes: confidence, decision_category, signals, risk_level, reasons
 cat << EOF
-[{"type":"result","structured_output":{"should_continue":$SHOULD_CONTINUE,"reasoning":"$REASONING"}}]
+[{"type":"result","structured_output":{"should_continue":$SHOULD_CONTINUE,"reasoning":"$REASONING","confidence":$CONFIDENCE,"decision_category":"$CATEGORY","signals":$SIGNALS,"risk_level":"$RISK","reasons":$REASONS}}]
 EOF

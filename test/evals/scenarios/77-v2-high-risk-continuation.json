@@ -1,0 +1,15 @@
+{
+  "name": "v2: High risk but valid continuation",
+  "description": "Assistant explicitly states next step involving risky refactor. Continue with high risk level.",
+  "expected_decision": true,
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Build the authentication system"
+    },
+    {
+      "role": "assistant",
+      "content": "Created the JWT token logic. Now I'll refactor the entire user model to support OAuth providers and migrate the existing sessions."
+    }
+  ]
+}
