@@ -343,6 +343,23 @@ else
     fail "Error output truncated to max lines" "Triage file not created"
 fi
 
+# --- Test 15: Non-numeric exit code handled (fail open) ---
+echo "Test 15: Non-numeric exit code handled (fail open)"
+
+rm -rf "$TEST_PROJECT"
+mkdir -p "$TEST_PROJECT"
+cd "$TEST_PROJECT"
+
+INPUT='{"payload":{"exit_code":"notanumber","command":"test","stderr":"error"}}'
+OUTPUT=$(echo "$INPUT" | "$HOOK_SCRIPT" 2>/dev/null)
+DECISION=$(echo "$OUTPUT" | jq -r '.decision // "unknown"')
+
+if [ "$DECISION" = "approve" ] && [[ ! -f ".claude/triage.md" ]]; then
+    pass "Non-numeric exit code handled (fail open)"
+else
+    fail "Non-numeric exit code handled (fail open)" "Got decision: $DECISION, triage exists: $([ -f .claude/triage.md ] && echo yes || echo no)"
+fi
+
 # --- Summary ---
 echo ""
 echo "=========================================="

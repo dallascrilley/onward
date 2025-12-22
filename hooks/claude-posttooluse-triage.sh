@@ -43,6 +43,12 @@ if [ -z "$EXIT_CODE" ] || [ "$EXIT_CODE" = "null" ] || [ "$EXIT_CODE" = "0" ]; t
     exit 0
 fi
 
+# Validate exit code is numeric (fail open if not)
+if ! [[ "$EXIT_CODE" =~ ^-?[0-9]+$ ]]; then
+    emit_decision "approve" "Non-numeric exit code: ${EXIT_CODE}"
+    exit 0
+fi
+
 # Extract command and output
 COMMAND=$(echo "$EVENT" | jq -r '
     .payload.command //
@@ -66,7 +72,7 @@ STDERR=$(echo "$EVENT" | jq -r '
 ' 2>/dev/null)
 
 debug_log "failure_detected" \
-    --argjson exit_code "${EXIT_CODE:-0}" \
+    --argjson exit_code "$(json_num "$EXIT_CODE" 0)" \
     --arg command "$COMMAND"
 
 # === Build triage report ===
@@ -212,7 +218,7 @@ TEMP_FILE=$(mktemp "$TRIAGE_FILE.tmp.XXXXXX" 2>/dev/null) || {
 
 if printf '%s\n' "$TRIAGE_CONTENT" > "$TEMP_FILE"; then
     if mv -f "$TEMP_FILE" "$TRIAGE_FILE" 2>/dev/null; then
-        debug_log "triage_written" --arg file "$TRIAGE_FILE" --argjson exit_code "$EXIT_CODE"
+        debug_log "triage_written" --arg file "$TRIAGE_FILE" --argjson exit_code "$(json_num "$EXIT_CODE" 0)"
         emit_decision "approve" "Triage report written to $TRIAGE_FILE (exit code: $EXIT_CODE)"
     else
         rm -f "$TEMP_FILE"
