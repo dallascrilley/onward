@@ -230,6 +230,7 @@ STALL_RISK=0
 CONTEXT_UNCHANGED=0
 CONFIDENCE_DECLINING=0
 CATEGORY_REPEAT_COUNT=0
+HAS_STALL_SIGNALS=false
 
 # Get throttle state for stall risk calculation
 throttle_read "$THROTTLE_FILE"
@@ -240,6 +241,7 @@ if [ -n "$CURRENT_CONTEXT_HASH" ]; then
     STALL_SIGNALS=$(detect_stall "$CURRENT_CONTEXT_HASH" "$DECISION_LOG_FILE" 2>/dev/null) || true
 
     if [ -n "$STALL_SIGNALS" ] && [ "$STALL_SIGNALS" != "null" ]; then
+        HAS_STALL_SIGNALS=true
         # Parse JSON signal flags
         CONTEXT_UNCHANGED=$(echo "$STALL_SIGNALS" | jq -r '.context_unchanged // 0')
         CONFIDENCE_DECLINING=$(echo "$STALL_SIGNALS" | jq -r '.confidence_declining // 0')
@@ -261,8 +263,13 @@ if [ -n "$CURRENT_CONTEXT_HASH" ]; then
 fi
 
 # Set stall metadata for persistence
-PERSIST_STALL_RISK="$STALL_RISK"
-PERSIST_CONTEXT_HASH="$CURRENT_CONTEXT_HASH"
+if [ "$HAS_STALL_SIGNALS" = "true" ]; then
+    PERSIST_STALL_RISK="$STALL_RISK"
+    PERSIST_CONTEXT_HASH="$CURRENT_CONTEXT_HASH"
+else
+    PERSIST_STALL_RISK=""
+    PERSIST_CONTEXT_HASH=""
+fi
 
 # --- Call the judge ---
 debug_log "prefilter_path" --arg path "judge"

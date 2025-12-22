@@ -78,7 +78,7 @@ persist_decision() {
                    then . + {user_override: {signal: $override_signal, reason: $override_reason}}
                    else .
                    end') || return 0
-         else
+        else
             decision_json=$(jq -n \
                 --arg ts "$timestamp" \
                 --arg sid "$PERSIST_SESSION_ID" \
@@ -89,6 +89,8 @@ persist_decision() {
                 --argjson dod_rules_count "$dod_rules_count" \
                 --arg stall_risk "$stall_risk" \
                 --arg context_hash "$context_hash" \
+                --arg override_signal "$override_signal" \
+                --arg override_reason "$override_reason" \
                 '{
                     timestamp: $ts,
                     session_id: $sid,
@@ -102,6 +104,10 @@ persist_decision() {
                   end
                 | if $stall_risk != ""
                   then . + {stall_risk: ($stall_risk | tonumber), context_hash: $context_hash}
+                  else .
+                  end
+                | if $override_signal != ""
+                  then . + {user_override: {signal: $override_signal, reason: $override_reason}}
                   else .
                   end') || return 0
         fi
