@@ -1,0 +1,16 @@
+{
+  "name": "Heuristic: Ambiguous case (falls to judge)",
+  "description": "No clear heuristic signal. Should fall through to judge for evaluation.",
+  "expected_decision": false,
+  "expected_path": "judge",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Review the code changes"
+    },
+    {
+      "role": "assistant",
+      "content": "I've reviewed the code. The changes look reasonable and follow the existing patterns. The error handling could be improved in a few places."
+    }
+  ]
+}

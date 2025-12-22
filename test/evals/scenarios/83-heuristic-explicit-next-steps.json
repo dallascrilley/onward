@@ -1,0 +1,16 @@
+{
+  "name": "Heuristic: Explicit next steps",
+  "description": "Assistant states what they will do next. Heuristic should detect and block stop without judge.",
+  "expected_decision": true,
+  "expected_path": "heuristic",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Create a REST API with authentication"
+    },
+    {
+      "role": "assistant",
+      "content": "I've created the basic route structure. Next I'll add the authentication middleware and then implement the user endpoints."
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "Heuristic: Stated todo items",
+  "description": "Assistant has numbered list with pending items. Heuristic should detect and block stop without judge.",
+  "expected_decision": true,
+  "expected_path": "heuristic",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Implement the checkout flow"
+    },
+    {
+      "role": "assistant",
+      "content": "Here's my progress:\n1. Cart display - done\n2. Payment form - pending\n3. Order confirmation - need to implement\n\nMoving on to the payment form now."
+    }
+  ]
+}

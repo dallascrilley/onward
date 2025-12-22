@@ -188,3 +188,136 @@ permission_language_decision() {
             ;;
     esac
 }
+
+# === Heuristic Signal Prefilter (Phase 3) ===
+# Detects clear stop/continue signals via pattern matching
+# Runs AFTER Phase 1 permission language check
+# Returns signal type or empty string if no match
+
+# Detect heuristic signals from recent context
+# Args: recent_context (JSON array via stdin or $1)
+# Returns: signal type (asking_for_clarification, missing_information, explicit_next_steps, stated_todo_items) or empty
+detect_heuristic_signal() {
+    local recent_context="$1"
+
+    # If no arg, try reading from stdin
+    if [ -z "$recent_context" ]; then
+        recent_context=$(cat)
+    fi
+
+    # Extract last assistant message
+    local last_assistant
+    last_assistant=$(printf '%s' "$recent_context" | jq -r '[.[] | select(.role=="assistant")] | last | .content // empty' 2>/dev/null)
+
+    # No assistant message found
+    [ -z "$last_assistant" ] && return 1
+
+    # === STOP signals (approve stop without judge) ===
+
+    # asking_for_clarification - requires question mark
+    # Patterns: "clarify", "can you explain", "what should", "how should"
+    if grep -q '\?' <<< "$last_assistant"; then
+        if grep -Eqi "(can you (clarify|explain)|clarify.*\?|what (should|would you like)|how should)" <<< "$last_assistant"; then
+            echo "asking_for_clarification"
+            return 0
+        fi
+    fi
+
+    # missing_information - NO question mark required
+    # Patterns: credential/API key/password requests, "I need", "I can't proceed without"
+    if grep -Eqi "(need.*(credential|api.?key|password|token|secret)|credential|api.?key.*need|can'?t proceed without|where (is|are) the)" <<< "$last_assistant"; then
+        echo "missing_information"
+        return 0
+    fi
+
+    # === CONTINUE signals (block stop without judge) ===
+    # NO question mark required
+
+    # explicit_next_steps - clear statement of what comes next
+    # Patterns: "Next I", "Then I'll", "Now I need to", "Moving on to", "Let me"
+    if grep -Eqi "(next i('ll| will| need| am going)|then i('ll| will)|now i('ll| will| need)|moving on to|let me (now |start |begin |continue ))" <<< "$last_assistant"; then
+        echo "explicit_next_steps"
+        return 0
+    fi
+
+    # stated_todo_items - list with pending/uncompleted items
+    # Look for numbered/bulleted list patterns with pending markers
+    if echo "$last_assistant" | grep -Eq "^[[:space:]]*([0-9]+\.|[-*•])[[:space:]]" 2>/dev/null; then
+        # Check if list has uncompleted items (pending, todo, need, remaining, not yet, next)
+        if grep -Eqi "(pending|todo|need to|remaining|not yet|next:|upcoming)" <<< "$last_assistant"; then
+            echo "stated_todo_items"
+            return 0
+        fi
+    fi
+
+    # No clear signal - fall through to judge
+    return 1
+}
+
+# Map heuristic signal to stop decision
+# Args: signal type
+# Returns: "true" (stop/approve), "false" (continue/block), or empty (unknown)
+heuristic_should_stop() {
+    local signal="$1"
+
+    case "$signal" in
+        asking_for_clarification|missing_information)
+            # User input needed → STOP (approve)
+            echo "true"
+            ;;
+        explicit_next_steps|stated_todo_items)
+            # Work continues → CONTINUE (block)
+            echo "false"
+            ;;
+        *)
+            # Unknown signal → fall back to judge
+            echo ""
+            ;;
+    esac
+}
+
+# Build v2 evaluation payload for heuristic decisions
+# Args: signal, should_stop (true/false), decision (block/approve)
+# Returns: JSON string with v2 metadata
+build_heuristic_evaluation() {
+    local signal="$1"
+    local should_stop="$2"
+    local decision="$3"
+
+    local decision_category
+    local should_continue
+
+    if [ "$should_stop" = "true" ]; then
+        should_continue="false"
+        case "$signal" in
+            asking_for_clarification)
+                decision_category="waiting_for_user"
+                ;;
+            missing_information)
+                decision_category="blocker"
+                ;;
+            *)
+                decision_category="waiting_for_user"
+                ;;
+        esac
+    else
+        should_continue="true"
+        decision_category="explicit_continuation"
+    fi
+
+    # Build JSON with jq
+    jq -nc \
+        --argjson should_continue "$should_continue" \
+        --arg reasoning "Heuristic detected signal '$signal' - $decision without judge" \
+        --arg decision_category "$decision_category" \
+        --arg signal "$signal" \
+        --arg risk_level "low" \
+        '{
+            should_continue: $should_continue,
+            reasoning: $reasoning,
+            decision_category: $decision_category,
+            signals: [$signal],
+            risk_level: $risk_level,
+            reasons: ["heuristic:\($signal)"]
+        }'
+}

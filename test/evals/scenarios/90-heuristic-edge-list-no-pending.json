@@ -1,0 +1,16 @@
+{
+  "name": "Heuristic edge: Numbered list without pending markers",
+  "description": "Has numbered list but no pending/todo markers. Should NOT trigger stated_todo_items heuristic.",
+  "expected_decision": false,
+  "expected_path": "judge",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Summarize the changes"
+    },
+    {
+      "role": "assistant",
+      "content": "Here are the changes made:\n1. Added user model\n2. Created API endpoints\n3. Implemented authentication\n\nAll changes have been committed and pushed."
+    }
+  ]
+}

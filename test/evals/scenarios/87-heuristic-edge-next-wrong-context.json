@@ -1,0 +1,16 @@
+{
+  "name": "Heuristic edge: 'next' in wrong context",
+  "description": "Contains 'next' but not as 'next I' pattern. Should NOT trigger heuristic, falls to judge.",
+  "expected_decision": false,
+  "expected_path": "judge",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Explain pagination"
+    },
+    {
+      "role": "assistant",
+      "content": "Pagination works by fetching items in pages. When the user clicks next, the application loads the next set of results. The API returns a cursor for the next page."
+    }
+  ]
+}
