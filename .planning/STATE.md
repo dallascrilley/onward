@@ -18,19 +18,19 @@
 
 ## Current Position
 
-Phase: 2 of 5 (Structured Output)
+Phase: 3 of 5 (Signal Heuristics)
 Plan: 1 of 1 complete
 Status: Phase complete
-Last activity: 2025-12-22 - Completed 02-01-PLAN.md
+Last activity: 2025-12-22 - Completed 03-01-PLAN.md
 
-Progress: ████░░░░░░ 40%
+Progress: ██████░░░░ 60%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
-- Average duration: 6 min
-- Total execution time: 0.2 hours
+- Total plans completed: 3
+- Average duration: 7 min
+- Total execution time: 0.35 hours
 
 **By Phase:**
 
@@ -38,9 +38,10 @@ Progress: ████░░░░░░ 40%
 |-------|-------|-------|----------|
 | 1 | 1 | 4 min | 4 min |
 | 2 | 1 | 8 min | 8 min |
+| 3 | 1 | 9 min | 9 min |
 
 **Recent Trend:**
-- Last 5 plans: 4m, 8m
+- Last 5 plans: 4m, 8m, 9m
 - Trend: Stable execution
 
 *Updated after each plan completion*
@@ -60,6 +61,10 @@ Progress: ████░░░░░░ 40%
 | 2 | v2 fields optional in schema | Backward compatibility - v1 consumers unaffected |
 | 2 | Confidence calibration in prompt | 0.9-1.0 very clear, 0.7-0.9 strong, 0.5-0.7 uncertain |
 | 2 | 12 signal types defined | Comprehensive coverage for Phase 3 heuristics |
+| 3 | Selective ? requirement | Required for asking_for_* signals, not for missing_information |
+| 3 | 4 heuristic signals implemented | asking_for_clarification, missing_information, explicit_next_steps, stated_todo_items |
+| 3 | Heuristic emits v2 metadata | Keeps explain.sh consistent; decision_category, signals, risk_level |
+| 3 | Three-tier path logging | permission → heuristic → judge for skip rate measurement |
 
 ### Deferred Issues
 
@@ -79,5 +84,5 @@ Drift notes: None
 ## Session Continuity
 
 Last session: 2025-12-22
-Stopped at: Phase 2 complete - Structured v2 Output shipped
+Stopped at: Phase 3 complete - Signal Heuristics shipped
 Resume file: None
