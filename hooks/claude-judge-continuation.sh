@@ -12,6 +12,65 @@ TRANSCRIPT_CONTEXT_LINES=10
 CLAUDE_MODEL="haiku"
 CLAUDE_WORK_DIR="$HOME/.claude/double-shot-latte"
 
+# === Prompt/Schema Definitions (used by both production and snapshot extraction) ===
+JSON_SCHEMA='{"type":"object","properties":{"should_continue":{"type":"boolean"},"reasoning":{"type":"string"}},"required":["should_continue","reasoning"]}'
+
+SYSTEM_PROMPT="You are a conversation state classifier. Your only job is to analyze conversation transcripts and determine if the assistant has more autonomous work to do. You output structured JSON. You do not write code or use tools."
+
+# Build evaluation prompt with conversation context
+# Usage: EVALUATION_PROMPT=$(build_evaluation_prompt "$RECENT_CONTEXT")
+build_evaluation_prompt() {
+    local context="$1"
+    cat <<EOF
+Analyze this conversation and determine: Does the assistant have more autonomous work to do RIGHT NOW?
+
+Conversation:
+$context
+
+CONTINUE (should_continue: true) ONLY IF the assistant explicitly states what it will do next:
+- Phrases indicating intent to continue (e.g., 'Next I need to...', 'Now I'll...', 'Moving on to...')
+- Incomplete todo list with remaining items marked pending
+- Stated follow-up tasks not yet performed
+
+STOP (should_continue: false) in ALL other cases:
+
+1. TASK COMPLETION - The assistant indicates work is finished:
+   - Completion statements (done, complete, finished, ready, all set)
+   - Summary of accomplished work with no stated next steps
+   - Confirming something is working/verified/installed
+
+2. QUESTIONS - The assistant needs user input:
+   - Asking for approval, decisions, clarification, or confirmation
+   - Offering optional actions (e.g., 'Want me to...?', 'Should I also...?')
+   - Note: Mid-task continuation questions (e.g., 'Should I continue?' when work is ongoing) = CONTINUE
+
+3. BLOCKERS - The assistant cannot proceed:
+   - Unresolved errors or missing information
+   - Uncertainty about requirements
+
+KEY: If the assistant is WAITING for the user (whether after completing work OR asking a question), that means STOP. Waiting ≠ more autonomous work to do.
+
+Default to STOP when uncertain.
+EOF
+}
+
+# Build recent transcript context as a JSON array.
+# Steps:
+# - Read the last 50 lines
+# - Drop empty lines and invalid JSON
+# - Keep the most recent TRANSCRIPT_CONTEXT_LINES
+# - Pack into a JSON array
+build_recent_context() {
+    local transcript_path="$1"
+    tail -n 50 "$transcript_path" 2>/dev/null | \
+        grep -v '^[[:space:]]*$' | \
+        while IFS= read -r line; do
+            printf '%s\n' "$line" | jq -e '.' >/dev/null 2>&1 && printf '%s\n' "$line"
+        done | \
+        tail -n "$TRANSCRIPT_CONTEXT_LINES" | \
+        jq -s '.' 2>/dev/null
+}
+
 # Debug configuration (disabled by default)
 REDBULL_DEBUG="${REDBULL_DEBUG:-false}"
 
@@ -64,6 +123,39 @@ if [ "$CLAUDE_HOOK_JUDGE_MODE" = "true" ]; then
     debug_log "recursion_guard"
     emit_decision "approve" "Running in judge mode, allowing stop"
     exit 0
+fi
+
+# === Snapshot Extraction Mode ===
+# When SNAPSHOT_EXTRACT_MODE=true, output prompt/schema components for testing
+# Pseudocode:
+# - If snapshot mode is enabled AND explicitly allowed, emit prompt/schema and exit
+# - If snapshot mode is enabled without explicit allow, warn and continue normal flow
+if [ "$SNAPSHOT_EXTRACT_MODE" = "true" ] && [ "$SNAPSHOT_EXTRACT_ALLOW" = "true" ]; then
+    # Read hook event from stdin
+    EVENT=$(cat)
+    TRANSCRIPT_PATH=$(echo "$EVENT" | jq -r '.transcript_path // ""')
+
+    # Validate transcript file
+    if [ -z "$TRANSCRIPT_PATH" ] || [ ! -f "$TRANSCRIPT_PATH" ] || [ ! -r "$TRANSCRIPT_PATH" ]; then
+        echo '{"error": "valid transcript_path required for snapshot extraction"}' >&2
+        exit 1
+    fi
+
+    # Build context using same logic as production
+    RECENT_CONTEXT=$(build_recent_context "$TRANSCRIPT_PATH")
+
+    # Build evaluation prompt
+    EVALUATION_PROMPT=$(build_evaluation_prompt "$RECENT_CONTEXT")
+
+    # Output as JSON for snapshot comparison
+    jq -n \
+        --arg schema "$JSON_SCHEMA" \
+        --arg system "$SYSTEM_PROMPT" \
+        --arg eval "$EVALUATION_PROMPT" \
+        '{"json_schema": $schema, "system_prompt": $system, "evaluation_prompt": $eval}'
+    exit 0
+elif [ "$SNAPSHOT_EXTRACT_MODE" = "true" ]; then
+    echo "SNAPSHOT_EXTRACT_MODE ignored unless SNAPSHOT_EXTRACT_ALLOW=true" >&2
 fi
 
 # === Throttle Helper Functions ===
@@ -238,14 +330,7 @@ fi
 
 # --- Extract last TRANSCRIPT_CONTEXT_LINES valid NDJSON entries (tolerant of empty/invalid lines) ---
 # Read more lines than needed to ensure we get enough valid ones after filtering
-RECENT_CONTEXT=$(tail -n 50 "$TRANSCRIPT_PATH" 2>/dev/null | \
-    grep -v '^[[:space:]]*$' | \
-    while IFS= read -r line; do
-        # Only output lines that are valid JSON
-        printf '%s\n' "$line" | jq -e '.' >/dev/null 2>&1 && printf '%s\n' "$line"
-    done | \
-    tail -n "$TRANSCRIPT_CONTEXT_LINES" | \
-    jq -s '.' 2>/dev/null)
+RECENT_CONTEXT=$(build_recent_context "$TRANSCRIPT_PATH")
 
 # Validate we got usable context
 CONTEXT_ENTRY_COUNT=$(echo "$RECENT_CONTEXT" | jq 'length // 0' 2>/dev/null || echo 0)
@@ -257,45 +342,11 @@ if [ -z "$RECENT_CONTEXT" ] || [ "$RECENT_CONTEXT" = "[]" ] || [ "$RECENT_CONTEX
     exit 0
 fi
 
-# Create a JSON schema for the response
-JSON_SCHEMA='{"type":"object","properties":{"should_continue":{"type":"boolean"},"reasoning":{"type":"string"}},"required":["should_continue","reasoning"]}'
-
-# System prompt to establish evaluator identity (not a coding agent)
-SYSTEM_PROMPT="You are a conversation state classifier. Your only job is to analyze conversation transcripts and determine if the assistant has more autonomous work to do. You output structured JSON. You do not write code or use tools."
-
 # Ensure the working directory exists
 mkdir -p "$CLAUDE_WORK_DIR"
 
-# Create the evaluation prompt
-EVALUATION_PROMPT="Analyze this conversation and determine: Does the assistant have more autonomous work to do RIGHT NOW?
-
-Conversation:
-$RECENT_CONTEXT
-
-CONTINUE (should_continue: true) ONLY IF the assistant explicitly states what it will do next:
-- Phrases indicating intent to continue (e.g., 'Next I need to...', 'Now I'll...', 'Moving on to...')
-- Incomplete todo list with remaining items marked pending
-- Stated follow-up tasks not yet performed
-
-STOP (should_continue: false) in ALL other cases:
-
-1. TASK COMPLETION - The assistant indicates work is finished:
-   - Completion statements (done, complete, finished, ready, all set)
-   - Summary of accomplished work with no stated next steps
-   - Confirming something is working/verified/installed
-
-2. QUESTIONS - The assistant needs user input:
-   - Asking for approval, decisions, clarification, or confirmation
-   - Offering optional actions (e.g., 'Want me to...?', 'Should I also...?')
-   - Note: Mid-task continuation questions (e.g., 'Should I continue?' when work is ongoing) = CONTINUE
-
-3. BLOCKERS - The assistant cannot proceed:
-   - Unresolved errors or missing information
-   - Uncertainty about requirements
-
-KEY: If the assistant is WAITING for the user (whether after completing work OR asking a question), that means STOP. Waiting ≠ more autonomous work to do.
-
-Default to STOP when uncertain."
+# Build evaluation prompt using the shared function
+EVALUATION_PROMPT=$(build_evaluation_prompt "$RECENT_CONTEXT")
 
 # Use claude --print to get the evaluation with structured output
 # Set environment variable to prevent recursion, use JSON schema, disable tools
@@ -314,8 +365,8 @@ if [ $CLAUDE_EXIT_CODE -ne 0 ]; then
     exit 0
 fi
 
-# Extract the structured output from the claude response (stream JSON format)
-EVALUATION_RESULT=$(echo "$CLAUDE_RESPONSE" | jq '.[] | select(.type == "result") | .structured_output // empty' 2>/dev/null)
+# Extract the structured output from the claude response (stream array or single object)
+EVALUATION_RESULT=$(echo "$CLAUDE_RESPONSE" | jq -c 'if type=="array" then .[] else . end | select(has("structured_output")) | .structured_output // empty' 2>/dev/null)
 
 # If no structured output, fall back to allowing stop
 if [ -z "$EVALUATION_RESULT" ] || [ "$EVALUATION_RESULT" = "null" ]; then
