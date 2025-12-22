@@ -1,0 +1,15 @@
+{
+  "name": "Optional offer: Should I also write docs? (nice to have)",
+  "description": "Claude offers nice-to-have work with explicit tag - should STOP (user choice needed)",
+  "expected_decision": false,
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Create a configuration management module"
+    },
+    {
+      "role": "assistant",
+      "content": "The config module is implemented with environment variable loading and validation. Should I also write API documentation for it? (nice to have)"
+    }
+  ]
+}

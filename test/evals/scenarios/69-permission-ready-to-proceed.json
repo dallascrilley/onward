@@ -1,0 +1,15 @@
+{
+  "name": "Permission-seeking: Ready to proceed with next step?",
+  "description": "Claude indicates ready to proceed with next step - should CONTINUE (permission seeking)",
+  "expected_decision": true,
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Refactor the payment processing module"
+    },
+    {
+      "role": "assistant",
+      "content": "I've analyzed the current payment module and identified the refactoring points. The error handling needs improvement and there's duplicated code. Ready to proceed with the refactoring?"
+    }
+  ]
+}

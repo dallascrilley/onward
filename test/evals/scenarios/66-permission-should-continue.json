@@ -1,0 +1,15 @@
+{
+  "name": "Permission-seeking: Should I continue implementing?",
+  "description": "Claude asks 'Should I continue?' mid-implementation - should CONTINUE (permission seeking, obvious answer is yes)",
+  "expected_decision": true,
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Create a REST API with CRUD operations for users"
+    },
+    {
+      "role": "assistant",
+      "content": "I've created the GET and POST endpoints for users with proper validation. Should I continue implementing the PUT and DELETE endpoints?"
+    }
+  ]
+}

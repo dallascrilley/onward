@@ -1,0 +1,15 @@
+{
+  "name": "Explicit choice: Which approach do you prefer?",
+  "description": "Claude presents options and asks for preference - should STOP (waiting for user decision)",
+  "expected_decision": false,
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Implement file upload functionality"
+    },
+    {
+      "role": "assistant",
+      "content": "I can implement file uploads in two ways:\n\n1. **Direct to S3**: Files upload directly to S3 with presigned URLs. Faster for large files.\n2. **Via API**: Files route through our API server. More control but adds latency.\n\nWhich approach do you prefer?"
+    }
+  ]
+}

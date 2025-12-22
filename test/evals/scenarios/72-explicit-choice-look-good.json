@@ -1,0 +1,15 @@
+{
+  "name": "Explicit choice: Does this design look good?",
+  "description": "Claude asks for approval on design - should STOP (waiting for user decision)",
+  "expected_decision": false,
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Design the database schema for the blog system"
+    },
+    {
+      "role": "assistant",
+      "content": "Here's my proposed schema design:\n- posts (id, title, content, author_id, created_at)\n- comments (id, post_id, user_id, content, created_at)\n- tags (id, name)\n- post_tags (post_id, tag_id)\n\nDoes this design look good to you?"
+    }
+  ]
+}
