@@ -87,6 +87,7 @@ TRANSCRIPT_PATH=$(echo "$EVENT" | jq -r '.transcript_path // ""')
 
 # Time-based throttling to prevent infinite loops
 SESSION_ID=$(echo "$EVENT" | jq -r '.session_id // "unknown"')
+PERSIST_SESSION_ID="$SESSION_ID"  # Set global for decision persistence (FTR-005)
 THROTTLE_FILE=$(throttle_file_for_session "$SESSION_ID")
 CURRENT_TIME=$(date +%s)
 
@@ -155,6 +156,9 @@ if [ -z "$EVALUATION_RESULT" ] || [ "$EVALUATION_RESULT" = "null" ]; then
     emit_decision "approve" "Could not parse Claude evaluation result, allowing default stop behavior"
     exit 0
 fi
+
+# Set global for decision persistence (FTR-005)
+PERSIST_EVALUATION_RESULT="$EVALUATION_RESULT"
 
 # Parse the evaluation result (should be JSON)
 SHOULD_CONTINUE=$(echo "$EVALUATION_RESULT" | jq -r '.should_continue // false')
