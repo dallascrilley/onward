@@ -177,6 +177,16 @@ if [[ "$VERBOSE" == "true" ]]; then
                 echo "$DECISION_JSON" | jq -r '.evaluation.reasons[]? // empty' | sed 's/^/    - /'
             fi
         fi
+
+        DOD_ENFORCEMENT=$(echo "$DECISION_JSON" | jq -r '.dod_enforcement // empty')
+        DOD_RULES_COUNT=$(echo "$DECISION_JSON" | jq -r '.dod_rules_count // empty')
+        if [[ -n "$DOD_RULES_COUNT" && "$DOD_RULES_COUNT" != "null" && "$DOD_RULES_COUNT" != "0" ]]; then
+            echo ""
+            echo "DoD:"
+            echo "  DoD Mode:      $DOD_ENFORCEMENT"
+            echo "  DoD Rules:     $DOD_RULES_COUNT"
+        fi
+
     elif [[ "$EVAL_RAW_EXISTS" == "true" ]]; then
         # evaluation_raw exists when the evaluation response wasn't valid JSON
         EVAL_RAW=$(echo "$DECISION_JSON" | jq -r '.evaluation_raw // "N/A"')
