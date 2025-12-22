@@ -349,9 +349,8 @@ detect_stall() {
     [ -n "$current_context_hash" ] || return 1
     [ -f "$decision_log_file" ] || return 1
 
-    # Read last 5 decisions
     local last_decisions
-    last_decisions=$(tail -n 5 "$decision_log_file" 2>/dev/null)
+    last_decisions=$(tail -n 10 "$decision_log_file" 2>/dev/null)
     [ -n "$last_decisions" ] || return 1
 
     # Initialize signal flags
@@ -399,35 +398,44 @@ detect_stall() {
         fi
     fi
 
-    # Check 3: Same decision_category repeated 3+ times
     local categories
     categories=$(echo "$last_decisions" | jq -r '.evaluation.decision_category // empty' 2>/dev/null | grep -v '^$')
     if [ -n "$categories" ]; then
-        local most_common
-        most_common=$(echo "$categories" | sort | uniq -c | sort -rn | head -1)
-        local count
-        count=$(echo "$most_common" | awk '{print $1}')
-        if [ "${count:-0}" -ge 3 ]; then
-            same_category_repeated=1
-            category_repeat_count="$count"
-        fi
+        local consecutive_count=0
+        local prev_category=""
+        while IFS= read -r category; do
+            if [ -n "$category" ]; then
+                if [ "$category" = "$prev_category" ]; then
+                    ((consecutive_count++))
+                else
+                    consecutive_count=1
+                    prev_category="$category"
+                fi
+                if [ "$consecutive_count" -ge 3 ]; then
+                    same_category_repeated=1
+                    category_repeat_count="$consecutive_count"
+                    break
+                fi
+            fi
+        done <<< "$categories"
     fi
 
-    # Return JSON with all signal flags for multi-signal aggregation
-    jq -nc \
-        --argjson context_unchanged "$context_unchanged" \
-        --argjson confidence_declining "$confidence_declining" \
-        --argjson same_category_repeated "$same_category_repeated" \
-        --argjson category_repeat_count "${category_repeat_count:-0}" \
-        '{
-            context_unchanged: $context_unchanged,
-            confidence_declining: $confidence_declining,
-            same_category_repeated: $same_category_repeated,
-            category_repeat_count: $category_repeat_count
-        }'
+    if [ "$context_unchanged" = "1" ] || [ "$confidence_declining" = "1" ] || [ "$same_category_repeated" = "1" ]; then
+        jq -nc \
+            --argjson context_unchanged "$context_unchanged" \
+            --argjson confidence_declining "$confidence_declining" \
+            --argjson same_category_repeated "$same_category_repeated" \
+            --argjson category_repeat_count "${category_repeat_count:-0}" \
+            '{
+                context_unchanged: $context_unchanged,
+                confidence_declining: $confidence_declining,
+                same_category_repeated: $same_category_repeated,
+                category_repeat_count: $category_repeat_count
+            }'
+        return 0
+    fi
 
-    # If any signal detected, return 0 (success)
-    [ "$context_unchanged" = "1" ] || [ "$confidence_declining" = "1" ] || [ "$same_category_repeated" = "1" ]
+    return 1
 }
 
 # Calculate stall risk score 0-100

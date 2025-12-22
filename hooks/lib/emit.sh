@@ -38,6 +38,9 @@ persist_decision() {
     local stall_risk="${PERSIST_STALL_RISK:-}"
     local context_hash="${PERSIST_CONTEXT_HASH:-}"
 
+    local override_signal="${USER_OVERRIDE_SIGNAL:-}"
+    local override_reason="${USER_OVERRIDE_REASON:-}"
+
     # Build the decision record with available context
     local decision_json
     if [ -n "$PERSIST_EVALUATION_RESULT" ] && [ "$PERSIST_EVALUATION_RESULT" != "null" ]; then
@@ -49,10 +52,13 @@ persist_decision() {
                 --arg dec "$decision" \
                 --arg reason "$reason" \
                 --argjson eval "$PERSIST_EVALUATION_RESULT" \
+                --arg eval_raw "$PERSIST_EVALUATION_RESULT" \
                 --arg dod_enforcement "$dod_enforcement" \
                 --argjson dod_rules_count "$dod_rules_count" \
                 --arg stall_risk "$stall_risk" \
                 --arg context_hash "$context_hash" \
+                --arg override_signal "$override_signal" \
+                --arg override_reason "$override_reason" \
                 '{
                     timestamp: $ts,
                     session_id: $sid,
@@ -64,11 +70,15 @@ persist_decision() {
                   then . + {dod_enforcement: $dod_enforcement, dod_rules_count: $dod_rules_count}
                   else .
                   end
-                | if $stall_risk != ""
-                  then . + {stall_risk: ($stall_risk | tonumber), context_hash: $context_hash}
-                  else .
-                  end') || return 0
-        else
+                 | if $stall_risk != ""
+                   then . + {stall_risk: ($stall_risk | tonumber), context_hash: $context_hash}
+                   else .
+                   end
+                 | if $override_signal != ""
+                   then . + {user_override: {signal: $override_signal, reason: $override_reason}}
+                   else .
+                   end') || return 0
+         else
             decision_json=$(jq -n \
                 --arg ts "$timestamp" \
                 --arg sid "$PERSIST_SESSION_ID" \
@@ -115,10 +125,14 @@ persist_decision() {
               then . + {dod_enforcement: $dod_enforcement, dod_rules_count: $dod_rules_count}
               else .
               end
-            | if $stall_risk != ""
-              then . + {stall_risk: ($stall_risk | tonumber), context_hash: $context_hash}
-              else .
-              end') || return 0
+                | if $stall_risk != ""
+                  then . + {stall_risk: ($stall_risk | tonumber), context_hash: $context_hash}
+                  else .
+                  end
+                | if $override_signal != ""
+                  then . + {user_override: {signal: $override_signal, reason: $override_reason}}
+                  else .
+                  end') || return 0
     fi
 
     # Write last decision atomically
