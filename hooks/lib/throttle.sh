@@ -51,17 +51,42 @@ throttle_read() {
     local throttle_data
     throttle_data=$(<"$throttle_file")
     [ -n "$throttle_data" ] || return 0
+    
+    if echo "$throttle_data" | jq empty 2>/dev/null; then
+        local count
+        local timestamp
+        local context_hash
+        count=$(echo "$throttle_data" | jq -r '.continue_count // empty')
+        timestamp=$(echo "$throttle_data" | jq -r '.last_continue_time // empty')
+        context_hash=$(echo "$throttle_data" | jq -r '.context_hash // empty')
+        
+        if [ -z "$count" ] || [ -z "$timestamp" ]; then
+            throttle_clear "$throttle_file"
+            return 0
+        fi
+        if ! [[ "$count" =~ ^[0-9]+$ ]] || ! [[ "$timestamp" =~ ^[0-9]+$ ]]; then
+            throttle_clear "$throttle_file"
+            return 0
+        fi
+        if [ "$timestamp" -gt "$CURRENT_TIME" ]; then
+            throttle_clear "$throttle_file"
+            return 0
+        fi
+        CONTINUE_COUNT="$count"
+        LAST_CONTINUE_TIME="$timestamp"
+        CONTEXT_HASH="$context_hash"
+        return 0
+    fi
+    
     local count
     local timestamp
     local context_hash
     local extra
-    # Parse v2 format: count:timestamp:context_hash or v1: count:timestamp
     IFS=':' read -r count timestamp context_hash extra <<<"$throttle_data"
     if [ -z "$count" ] || [ -z "$timestamp" ]; then
         throttle_clear "$throttle_file"
         return 0
     fi
-    # Allow context_hash to be present (v2) but reject extra fields beyond that
     if [ -n "$extra" ]; then
         throttle_clear "$throttle_file"
         return 0
@@ -79,8 +104,6 @@ throttle_read() {
     CONTEXT_HASH="${context_hash:-}"
 }
 
-# Writes count:timestamp:context_hash to throttle file (v2 format)
-# Args: throttle_file, count, timestamp, context_hash (optional)
 throttle_write() {
     local throttle_file="$1"
     local count="$2"
@@ -88,12 +111,21 @@ throttle_write() {
     local context_hash="${4:-}"
     local temp_file
     temp_file=$(mktemp "${throttle_file}.tmp.XXXXXX") || return 1
+    
     local data
     if [ -n "$context_hash" ]; then
-        data="${count}:${timestamp}:${context_hash}"
+        data=$(jq -n \
+            --argjson count "$count" \
+            --argjson timestamp "$timestamp" \
+            --arg hash "$context_hash" \
+            '{continue_count: $count, last_continue_time: $timestamp, context_hash: $hash}')
     else
-        data="${count}:${timestamp}"
+        data=$(jq -n \
+            --argjson count "$count" \
+            --argjson timestamp "$timestamp" \
+            '{continue_count: $count, last_continue_time: $timestamp}')
     fi
+    
     if ! printf '%s\n' "$data" > "$temp_file"; then
         rm -f "$temp_file"
         return 1

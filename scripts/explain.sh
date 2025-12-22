@@ -211,6 +211,20 @@ if [[ "$VERBOSE" == "true" ]]; then
             fi
         fi
 
+        USER_OVERRIDE=$(echo "$DECISION_JSON" | jq -r '.user_override // empty')
+        if [[ "$USER_OVERRIDE" != "null" && "$USER_OVERRIDE" != "" ]]; then
+            OVERRIDE_SIGNAL=$(echo "$USER_OVERRIDE" | jq -r '.signal // empty')
+            OVERRIDE_REASON=$(echo "$USER_OVERRIDE" | jq -r '.reason // empty')
+            echo ""
+            echo "User Override:"
+            if [[ -n "$OVERRIDE_SIGNAL" && "$OVERRIDE_SIGNAL" != "null" ]]; then
+                echo "  Override Signal: $OVERRIDE_SIGNAL"
+            fi
+            if [[ -n "$OVERRIDE_REASON" && "$OVERRIDE_REASON" != "null" ]]; then
+                echo "  Override Reason: $OVERRIDE_REASON"
+            fi
+        fi
+
     elif [[ "$EVAL_RAW_EXISTS" == "true" ]]; then
         # evaluation_raw exists when the evaluation response wasn't valid JSON
         EVAL_RAW=$(echo "$DECISION_JSON" | jq -r '.evaluation_raw // "N/A"')
