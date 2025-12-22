@@ -1,0 +1,16 @@
+{
+  "name": "Stall: Multiple uncertainty signals combined",
+  "description": "Assistant shows multiple signs of being stuck: vague progress, uncertainty, and lack of next steps. Very high stall risk.",
+  "expected_decision": false,
+  "notes": "Combines context unchanged + category repeated patterns. With stall detection history, this would produce very high risk score (>70) triggering force stop.",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Implement the caching layer"
+    },
+    {
+      "role": "assistant",
+      "content": "I've been working on this for a while. The caching approach I tried doesn't seem quite right. I'm not sure what the best solution is here. I've looked at several options but none feel like the right fit. Still investigating."
+    }
+  ]
+}
