@@ -21,6 +21,8 @@ settings_get_path() {
 _settings_default() {
     REDBULL_ENABLED="true"
     REDBULL_AGGRESSIVENESS="high"
+    DEFINITION_OF_DONE=""
+    DOD_ENFORCEMENT="advisory"
 }
 
 # Load settings from file (fail-closed: defaults on any error)
@@ -33,6 +35,8 @@ settings_load() {
     [ -r "$path" ] || return 0
 
     local in_frontmatter="false"
+    local in_dod_list="false"
+    local dod_rules=""
     while IFS= read -r line || [ -n "$line" ]; do
         if [ "$in_frontmatter" = "false" ]; then
             [ "$line" = "---" ] && in_frontmatter="true"
@@ -45,6 +49,22 @@ settings_load() {
         # Skip comments and blank lines
         [[ "$line" =~ ^[[:space:]]*# ]] && continue
         [[ "$line" =~ ^[[:space:]]*$ ]] && continue
+
+        # Handle multi-line YAML list items (indented lines starting with "- ")
+        if [ "$in_dod_list" = "true" ]; then
+            if [[ "$line" =~ ^[[:space:]]+-[[:space:]](.+)$ ]]; then
+                local rule="${BASH_REMATCH[1]}"
+                if [ -n "$dod_rules" ]; then
+                    dod_rules="${dod_rules}"$'\n'"${rule}"
+                else
+                    dod_rules="${rule}"
+                fi
+                continue
+            else
+                in_dod_list="false"
+                # Fall through to process this line normally
+            fi
+        fi
 
         # Only "key: value" (single-line, no nested YAML)
         local key="${line%%:*}"
@@ -63,8 +83,18 @@ settings_load() {
                     low|medium|high) REDBULL_AGGRESSIVENESS="$value" ;;
                 esac
                 ;;
+            dod_enforcement)
+                case "$value" in
+                    advisory|strict) DOD_ENFORCEMENT="$value" ;;
+                esac
+                ;;
+            definition_of_done)
+                in_dod_list="true"
+                ;;
         esac
     done < "$path"
+
+    DEFINITION_OF_DONE="$dod_rules"
 }
 
 # Apply aggressiveness to TRANSCRIPT_CONTEXT_LINES
