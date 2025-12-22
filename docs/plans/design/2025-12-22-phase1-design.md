@@ -43,7 +43,8 @@ Today, we pay for a judge call on every stop attempt, even when the answer is ob
 **Correctness**
 - Existing scenarios: **all pass 5/5**
 - New scenarios: **all pass 5/5**
-- False positives remain low (target **<5%**)
+- Target: **~0 false positives** in the eval suite
+- In production: **extremely low**; ambiguous cases must fall back to judge
 
 **Impact**
 - Skip **~5–15%** of judge calls (measured via debug logs)
@@ -67,7 +68,7 @@ Skip the Claude evaluator for obvious cases where the assistant is asking for pe
 
 - Judge evaluates every transcript (100% of cases)
 - Hook flow: ignore patterns → judge → decision
-- **Gap:** Common permission-seeking language ("Should I continue?", "Want me to...?") still goes to judge, even though the answer is obvious
+- **Gap:** Common permission-seeking language ("Should I continue?") still goes to judge, even though the answer is obvious
 
 ---
 
@@ -84,14 +85,14 @@ Transcript
 2. PERMISSION LANGUAGE PREFILTER (NEW)
     ├─ PERMISSION-SEEKING patterns
     │  ├─ "Should I continue?"
-    │  ├─ "Want me to...?"
-    │  └─ "Shall I...?"
+    │  ├─ "Shall I proceed?"
+    │  └─ "Is it OK if I...?"
     │  → BLOCK stop (work is ongoing, assistant asking for permission)
     │
     └─ NEEDS-USER-CHOICE patterns
-       ├─ "Do you want me to...?"
-       ├─ "Should I also...?"
-       └─ "Offering optional work"
+       ├─ "Which/prefer/choose" (explicit decision)
+       ├─ "Does this look good?" (approval needed)
+       └─ "Want me to/should I also...?" + optional framing
        → APPROVE stop (waiting for user decision)
     ↓
 3. JUDGE (fallback for ambiguous)
@@ -168,7 +169,8 @@ detect_permission_language() {
     [[ ! "$last_assistant" =~ \? ]] && return 1
 
     # PERMISSION-SEEKING patterns (ask to continue work)
-    if grep -Eqi "should i continue|shall i proceed|is it (ok|alright|fine) if.*continue|ready to proceed" <<< "$last_assistant"; then
+    # Note: "is it ok if" pattern loosened to match "Is it OK if I create tests?" (without requiring "continue")
+    if grep -Eqi "should i continue|shall i proceed|is it (ok|alright|fine) if i|ready to proceed" <<< "$last_assistant"; then
         echo "permission_seeking"
         return 0
     fi
@@ -232,7 +234,7 @@ if [ -n "$PERMISSION_PATTERN" ]; then
         debug_log "permission_language" --arg pattern "$PERMISSION_PATTERN" --arg decision "$PERMISSION_DECISION"
 
         if [ "$PERMISSION_DECISION" = "block" ]; then
-            emit_decision "block" "Permission-seeking language detected: assistant asking if it should continue → unblock"
+            emit_decision "block" "Permission-seeking language detected: assistant asking if it should continue → block stop (continue work)"
             exit 0
         elif [ "$PERMISSION_DECISION" = "approve" ]; then
             emit_decision "approve" "User choice needed: assistant offering optional work or asking for decision"
@@ -264,8 +266,8 @@ Add to existing 65 scenarios to test Phase 1:
 
 **New Scenarios for Needs User Choice (APPROVE):**
 
-- **New 4:** "Want me to add caching?" → approve (user choice needed)
-- **New 5:** "Should I also write documentation?" → approve (user choice needed)
+- **New 4:** "Want me to add caching? (optional)" → approve (explicitly optional)
+- **New 5:** "Should I also write documentation? (nice to have)" → approve (explicitly optional)
 - **New 6:** "Does this design look good?" → approve (needs approval)
 - **New 7:** "Which approach would you prefer?" → approve (asking for decision)
 
@@ -283,7 +285,7 @@ Add to existing 65 scenarios to test Phase 1:
 - [ ] All new scenarios pass 5/5 runs
 - [ ] All 65 existing scenarios still pass 5/5 runs
 - [ ] Debug logs show which path (permission vs judge) was used
-- [ ] False positive rate <5% (high precision)
+- [ ] Target: ~0 false positives in eval suite; ambiguous cases fall back to judge
 
 ### Proving Command
 
@@ -366,11 +368,14 @@ grep -Eqi "is it (ok|alright) if" ← BLOCK
 ### APPROVE (Stop, Waiting for User)
 
 ```bash
-# Needs user choice
-grep -Eqi "want me to" ← APPROVE
-grep -Eqi "should i also|should i add" ← APPROVE
+# Explicit choice required
 grep -Eqi "which.*prefer|choose" ← APPROVE
 grep -Eqi "does this (look|seem).*good" ← APPROVE
+
+# Optional work (only with explicit optional framing)
+grep -Eqi "(want me to|should i also).*(optional|nice.?to.?have|if you want)" ← APPROVE
+
+# Note: "want me to" or "should i also" WITHOUT optional framing → fall back to judge
 ```
 
 ---
@@ -408,17 +413,19 @@ Decision: BLOCK (continue work, assistant asking for permission)
 **Transcript:**
 ```
 User:      "Build a user service"
-Assistant: "Created CRUD endpoints. Want me to add authentication?"
+Assistant: "Created CRUD endpoints. Want me to add authentication? (optional)"
 ```
 
 **Detection:**
 ```
-detect_permission_language(...) → "needs_user_choice"
-permission_language_decision("needs_user_choice") → "approve"
+detect_permission_language(...) → "optional_offer"
+permission_language_decision("optional_offer") → "approve"
 Decision: APPROVE (stop, wait for user decision)
 ```
 
-**Why:** Assistant finished baseline work, offering optional feature. Should wait for user input.
+**Why:** Assistant finished baseline work, offering optional feature with explicit optional framing. Should wait for user input.
+
+**Note:** Without "(optional)" framing, this would fall back to judge (conservative approach).
 
 ### Example 3: Ambiguous (Fall Back to Judge)
 
@@ -446,7 +453,7 @@ Decision: APPROVE (stop, work complete)
 - ✅ All 5–10 new permission-language scenarios pass 5/5 runs
 - ✅ Permission-seeking detection accuracy: >95%
 - ✅ Needs-user-choice detection accuracy: >95%
-- ✅ False positive rate: <5% (high precision)
+- ✅ Target: ~0 false positives in eval suite; ambiguous cases fall back to judge
 - ✅ ~5–15% of judge calls skipped
 
 ---
