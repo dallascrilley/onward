@@ -224,8 +224,9 @@ detect_heuristic_signal() {
     fi
 
     # missing_information - NO question mark required
-    # Patterns: credential/API key/password requests, "I need", "I can't proceed without"
-    if grep -Eqi "(need.*(credential|api.?key|password|token|secret)|credential|api.?key.*need|can'?t proceed without|where (is|are) the)" <<< "$last_assistant"; then
+    # Patterns: credential/API key/password requests with tight proximity, "I can't proceed without"
+    # Note: avoid false positive on "password strength" or "token validation" mentions
+    if grep -Eqi "(need.{0,15}(credential|api.?key|the password|the token|the secret)|provide.{0,15}(credential|api.?key|password|token)|can'?t proceed without|where (is|are) the.{0,10}(credential|key|password|token|secret))" <<< "$last_assistant"; then
         echo "missing_information"
         return 0
     fi
