@@ -431,6 +431,9 @@ run_transcript_validation_cases() {
     echo ""
 }
 
+# Decision file location for v2 validation
+LAST_DECISION_FILE="${REDBULL_STATE_DIR:-$HOME/.claude/redbull}/last_decision.json"
+
 # Process each scenario file
 for scenario_file in "$SCENARIOS_DIR"/$SCENARIO_GLOB; do
     if [ ! -f "$scenario_file" ]; then
@@ -441,6 +444,7 @@ for scenario_file in "$SCENARIOS_DIR"/$SCENARIO_GLOB; do
     scenario_name=$(jq -r '.name' "$scenario_file")
     description=$(jq -r '.description' "$scenario_file")
     expected_decision=$(jq -r '.expected_decision' "$scenario_file")
+    expected_v2_fields=$(jq -c '.expected_v2_fields // null' "$scenario_file")
 
     echo "📝 Scenario: $scenario_name"
     echo "   Description: $description"
@@ -474,7 +478,12 @@ for scenario_file in "$SCENARIOS_DIR"/$SCENARIO_GLOB; do
             continue
         }
         if [ "$EVAL_OFFLINE" = "1" ]; then
-            hook_output=$(echo "$hook_event" | STUB_EXPECTED_DECISION="$expected_decision" "$HOOK_SCRIPT" 2>"$stderr_file")
+            # Generate stub v2 fields from expected_v2_fields constraints
+            stub_v2_fields=""
+            if [ -n "$expected_v2_fields" ] && [ "$expected_v2_fields" != "null" ]; then
+                stub_v2_fields=$(generate_stub_v2_fields "$expected_v2_fields" "$expected_decision")
+            fi
+            hook_output=$(echo "$hook_event" | STUB_EXPECTED_DECISION="$expected_decision" STUB_V2_FIELDS="$stub_v2_fields" "$HOOK_SCRIPT" 2>"$stderr_file")
         else
             hook_output=$(echo "$hook_event" | "$HOOK_SCRIPT" 2>"$stderr_file")
         fi
@@ -510,8 +519,20 @@ for scenario_file in "$SCENARIOS_DIR"/$SCENARIO_GLOB; do
 
         # Check if it matches expected
         if [ "$hook_should_continue" = "$expected_decision" ]; then
-            passes=$((passes + 1))
-            echo -e "   ${GREEN}✓${NC} Run $run: PASS (decision: $decision)"
+            # Decision matches, now validate v2 fields if expected
+            v2_error=""
+            if [ -n "$expected_v2_fields" ] && [ "$expected_v2_fields" != "null" ] && [ -f "$LAST_DECISION_FILE" ]; then
+                v2_error=$(validate_v2_fields "$LAST_DECISION_FILE" "$expected_v2_fields" 2>/dev/null) || true
+            fi
+
+            if [ -z "$v2_error" ]; then
+                passes=$((passes + 1))
+                echo -e "   ${GREEN}✓${NC} Run $run: PASS (decision: $decision)"
+            else
+                fails=$((fails + 1))
+                echo -e "   ${YELLOW}⚠${NC} Run $run: v2 FAIL (decision correct, v2 invalid)"
+                echo "      $v2_error"
+            fi
         else
             fails=$((fails + 1))
             echo -e "   ${RED}✗${NC} Run $run: FAIL (decision: $decision, expected should_continue: $expected_decision)"
