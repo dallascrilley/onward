@@ -2,6 +2,11 @@
   "name": "v2: Multiple signals detected",
   "description": "Transcript shows both explicit next steps AND incomplete implementation. Multiple signals expected.",
   "expected_decision": true,
+  "expected_v2_fields": {
+    "decision_category": "explicit_continuation",
+    "signals_include": ["explicit_next_steps", "incomplete_implementation"],
+    "signals_length_min": 2
+  },
   "transcript": [
     {
       "role": "user",

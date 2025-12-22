@@ -2,6 +2,12 @@
   "name": "v2: High confidence continuation",
   "description": "Clear explicit next steps stated. High confidence and low risk expected.",
   "expected_decision": true,
+  "expected_v2_fields": {
+    "decision_category": "explicit_continuation",
+    "confidence_min": 0.85,
+    "risk_level": "low",
+    "signals_include": ["explicit_next_steps"]
+  },
   "transcript": [
     {
       "role": "user",

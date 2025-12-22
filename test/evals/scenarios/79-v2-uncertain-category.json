@@ -2,6 +2,11 @@
   "name": "v2: Uncertain decision boundary",
   "description": "Edge case: could be completion OR waiting for user. Stop expected with uncertainty acknowledged.",
   "expected_decision": false,
+  "expected_v2_fields": {
+    "decision_category_any": ["waiting_for_user", "uncertain"],
+    "confidence_max": 0.85,
+    "risk_level_any": ["medium", "high"]
+  },
   "transcript": [
     {
       "role": "user",

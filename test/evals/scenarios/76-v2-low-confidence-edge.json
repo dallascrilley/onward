@@ -2,6 +2,12 @@
   "name": "v2: Low confidence edge case",
   "description": "Ambiguous transcript with vague phrasing ('might', 'could'). Continue, but low confidence expected.",
   "expected_decision": true,
+  "expected_v2_fields": {
+    "confidence_min": 0.55,
+    "confidence_max": 0.75,
+    "decision_category_any": ["explicit_continuation", "incomplete_work"],
+    "risk_level_any": ["low", "medium"]
+  },
   "transcript": [
     {
       "role": "user",
