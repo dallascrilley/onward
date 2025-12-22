@@ -36,6 +36,16 @@ echo '{"session_id":"test"}' | \
 
 ## Architecture
 
+### Hook Entrypoints
+
+**Canonical paths:**
+- **Hook system entrypoint** (Claude Code): `${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd`
+  - Used by `hooks/hooks.json` for portable plugin installation
+  - Wraps `claude-judge-continuation.sh` for cross-platform compatibility
+- **Direct script path** (testing/manual): `hooks/claude-judge-continuation.sh`
+  - Used by test suite (`test/evals/run-evals.sh`) and manual testing
+  - Relative path from repo root: `hooks/claude-judge-continuation.sh`
+
 ### Hook Flow
 1. **Stop event triggered** - Claude attempts to stop mid-task
 2. **Hook intercepts** - `hooks/claude-judge-continuation.sh` receives event via stdin (JSON)
@@ -55,6 +65,7 @@ echo '{"session_id":"test"}' | \
 **hooks/run-hook.cmd**
 - Polyglot wrapper (bash + Windows cmd) for cross-platform compatibility
 - Allows hook scripts to work on Windows via Git Bash and Unix systems
+- Entrypoint used by Claude Code hook system via `${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd`
 
 **test/evals/scenarios/**
 - 60+ JSON scenario files with conversation transcripts and expected decisions

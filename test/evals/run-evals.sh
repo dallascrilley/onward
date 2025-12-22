@@ -7,6 +7,9 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCENARIOS_DIR="$SCRIPT_DIR/scenarios"
+# Canonical hook script path for testing (relative to repo root: hooks/claude-judge-continuation.sh)
+# Note: The hook system uses ${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd as entrypoint,
+# but tests call the script directly for validation.
 HOOK_SCRIPT="$SCRIPT_DIR/../../hooks/claude-judge-continuation.sh"
 TEMP_DIR="/tmp/hook-evals-$$"
 
