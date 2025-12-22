@@ -143,7 +143,7 @@
       "effort": 1,
       "risk": 1,
       "priority_score": 2.0,
-      "description": "Rename plugin from 'double-shot-latte' to 'redbull' for consistency with repo name",
+      "description": "Rename plugin from 'redbull' to 'redbull' for consistency with repo name",
       "targets": [
         ".claude-plugin/plugin.json (name field)",
         "hooks/claude-judge-continuation.sh:69 (CLAUDE_WORK_DIR)",

@@ -20,7 +20,7 @@ The Redbull plugin prevents Claude Code from stopping prematurely by using a sec
 - **Hardcoded Values**: Magic numbers (3 continuations, 5 minutes, 10 transcript lines) scattered throughout
 - **Tight Coupling**: Throttle logic, evaluation prompt, and decision logic all intertwined
 - **Limited Testability**: No unit testing for individual functions; relies on full integration tests
-- **Inconsistent Naming**: Plugin name mismatch (`double-shot-latte` in plugin.json vs `redbull` in repo name)
+- **Inconsistent Naming**: Plugin name mismatch (`redbull` in plugin.json vs `redbull` in repo name)
 - **Missing Linter**: No shellcheck or bash linting configured despite AGENTS.md noting this gap
 
 ### Constraints
@@ -43,7 +43,7 @@ The Redbull plugin prevents Claude Code from stopping prematurely by using a sec
 3. **Extract Throttle Logic** - Separate throttle.sh module with read/write/check functions
 4. **Extract Evaluation Prompt** - Move prompt text to separate file for easier iteration
 5. **Add Shellcheck Linting** - Configure shellcheck CI and fix violations
-6. **Fix Plugin Name Inconsistency** - Rename plugin.json name from `double-shot-latte` to `redbull`
+6. **Fix Plugin Name Inconsistency** - Rename plugin.json name from `redbull` to `redbull`
 7. **Extract Decision Output Function** - Deduplicate JSON output formatting
 8. **Add Function Documentation** - Add bash function docs for each logical section
 9. **Introduce Dependency Injection for Testing** - Allow mocking claude CLI in tests
@@ -69,7 +69,7 @@ The Redbull plugin prevents Claude Code from stopping prematurely by using a sec
 | 2 | REF-002 | Consolidate jq Invocations into Single Parse Call | Conventional | 4 | 2 | 2 | 2 | 2 | 2.00 | `jq -r`, `echo "$EVENT" \| jq`, `TRANSCRIPT_PATH` |
 | 3 | REF-003 | Extract Throttle Logic to Separate Module | Creative | 4 | 2 | 2 | 2 | 3 | 2.00 | `THROTTLE_FILE`, `CONTINUE_COUNT`, `TIME_SINCE_LAST` |
 | 4 | REF-004 | Add Shellcheck Linting with CI Integration | Conventional | 3 | 1 | 1 | 1 | 1 | 3.00 | `*.sh`, `.shellcheckrc`, `lint:` |
-| 5 | REF-005 | Fix Plugin Name Inconsistency | Conventional | 2 | 1 | 1 | 1 | 1 | 2.00 | `plugin.json`, `double-shot-latte`, `CLAUDE_WORK_DIR` |
+| 5 | REF-005 | Fix Plugin Name Inconsistency | Conventional | 2 | 1 | 1 | 1 | 1 | 2.00 | `plugin.json`, `redbull`, `CLAUDE_WORK_DIR` |
 | 6 | REF-006 | Extract Decision Output Formatting Function | Conventional | 3 | 1 | 1 | 1 | 1 | 3.00 | `jq -n --arg reason`, `"decision"`, `echo '{"decision"` |
 | 7 | REF-007 | Create Evaluation Prompt Template System | Creative | 4 | 3 | 3 | 3 | 4 | 1.33 | `EVALUATION_PROMPT=`, `prompts/`, `--system-prompt` |
 | 8 | REF-008 | Implement Architectural Separation (Hook Library) | Moonshot | 5 | 4 | 3 | 3 | 5 | 1.25 | `lib/`, `source`, `hook-utils.sh` |
@@ -88,5 +88,5 @@ The Redbull plugin prevents Claude Code from stopping prematurely by using a sec
 
 - Existing eval suite (65 scenarios, 5 runs each) provides comprehensive regression coverage for refactoring safety
 - Performance refactoring (REF-002, REF-009) may have minimal real-world impact given infrequent hook invocation
-- Plugin name fix (REF-005) has low risk since `double-shot-latte` is internal reference only
+- Plugin name fix (REF-005) has low risk since `redbull` is internal reference only
 - Moonshot REF-008 requires careful design to maintain single-file simplicity users expect from bash plugins

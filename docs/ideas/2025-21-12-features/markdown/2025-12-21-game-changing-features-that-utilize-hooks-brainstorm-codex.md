@@ -105,7 +105,7 @@ Candidate coverage checklist (explicit):
 - scores: impact=3 effort=1 expertise=2 risk=1 novelty=2 priority_score=3.00
 - user value proposition: Lets users control how aggressive hooks are (continue behavior, auto-run commands, guardrails strictness) per repo, reducing surprise automation and making the plugin broadly adoptable.
 - scope:
-  - in: Read `.claude/double-shot-latte.local.md` (or repo-standard equivalent) with YAML frontmatter; support `enabled`, `aggressiveness`, and feature toggles for major hook behaviors.
+  - in: Read `.claude/redbull.local.md` (or repo-standard equivalent) with YAML frontmatter; support `enabled`, `aggressiveness`, and feature toggles for major hook behaviors.
   - out: Global user settings UI; syncing settings across machines.
 - implementation steps:
   1. Define a minimal YAML schema (fail-closed defaults) and parsing helper in bash (`yq`-free; parse frontmatter with `awk/sed` + `jq`-style validation via Claude schema or strict regex).

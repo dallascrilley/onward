@@ -59,7 +59,7 @@ Phase 3: Definition of Done (user-config rubric)
 Goal: A single config file makes decisions way more accurate.
 
 Changes
-	1.	Add config file (e.g. ~/.double-shot-latte.yaml) with:
+	1.	Add config file (e.g. ~/.redbull.yaml) with:
 	•	definition_of_done: [ ... ]
 	•	continue_confidence_threshold: 0.75
 	•	soft_prompt_threshold: 0.55

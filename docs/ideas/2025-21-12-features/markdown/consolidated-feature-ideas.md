@@ -189,7 +189,7 @@ Hook-based Claude Code plugin that intercepts “stop” moments and decides whe
   - Lets users control how aggressive hooks are (continue behavior, auto-run commands, guardrails strictness) per repo.
 - **scope**:
   - in:
-    - Read `.claude/double-shot-latte.local.md` (or repo-standard equivalent) with YAML frontmatter; support `enabled`, `aggressiveness`, and feature toggles for major hook behaviors.
+    - Read `.claude/redbull.local.md` (or repo-standard equivalent) with YAML frontmatter; support `enabled`, `aggressiveness`, and feature toggles for major hook behaviors.
   - out:
     - Global settings UI; cross-machine syncing.
 - **implementation_steps**:
