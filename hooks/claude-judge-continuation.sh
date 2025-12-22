@@ -71,6 +71,46 @@ build_recent_context() {
         jq -s '.' 2>/dev/null
 }
 
+# Debug configuration (disabled by default)
+REDBULL_DEBUG="${REDBULL_DEBUG:-false}"
+
+# Verify jq is available for debug logging; silently disable if not
+if [ "$REDBULL_DEBUG" = "true" ] && ! command -v jq >/dev/null 2>&1; then
+    REDBULL_DEBUG="false"
+fi
+
+# Debug log emitter - writes compact structured JSON to stderr only
+# Logs metadata only, never transcript content or secrets
+debug_log() {
+    [ "$REDBULL_DEBUG" = "true" ] || return 0
+    local event="$1"
+    local ts
+    ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    shift
+    jq -cn --arg ts "$ts" --arg event "$event" \
+        '$ARGS.named + {timestamp: $ts, event: $event}' "$@" >&2
+}
+
+# Safely format a value for jq --argjson (numbers)
+# Usage: json_num <value> [default]
+json_num() {
+    local val="$1"
+    local default="${2:-0}"
+    [[ "$val" =~ ^-?[0-9]+$ ]] && echo "$val" || echo "$default"
+}
+
+# Safely format a boolean for jq --argjson
+# Usage: json_bool <value> [default]
+json_bool() {
+    local val="$1"
+    local default="${2:-false}"
+    case "$val" in
+        true|TRUE|True|1) echo "true" ;;
+        false|FALSE|False|0) echo "false" ;;
+        *) echo "$default" ;;
+    esac
+}
+
 # Single output emitter - all stdout JSON goes through here
 emit_decision() {
     local decision="$1"
@@ -80,6 +120,7 @@ emit_decision() {
 
 # Check if we're in a recursive call (judge Claude instance)
 if [ "$CLAUDE_HOOK_JUDGE_MODE" = "true" ]; then
+    debug_log "recursion_guard"
     emit_decision "approve" "Running in judge mode, allowing stop"
     exit 0
 fi
@@ -226,6 +267,7 @@ EVENT=$(cat)
 
 # Validate input is valid JSON
 if ! echo "$EVENT" | jq empty 2>/dev/null; then
+    debug_log "invalid_input"
     emit_decision "approve" "Invalid JSON input: could not parse hook event"
     exit 0
 fi
@@ -239,10 +281,22 @@ SESSION_ID=$(echo "$EVENT" | jq -r '.session_id // "unknown"')
 THROTTLE_FILE=$(throttle_file_for_session "$SESSION_ID")
 CURRENT_TIME=$(date +%s)
 
+# Log parsed event metadata (basename only for security)
+debug_log "event_parsed" \
+    --argjson stop_hook_active "$(json_bool "$STOP_HOOK_ACTIVE" false)" \
+    --arg transcript_file "$(basename "$TRANSCRIPT_PATH" 2>/dev/null || echo 'none')"
+
 # Early exit: Force stop if continuation limit reached in active stop hook cycle
 if [ "$STOP_HOOK_ACTIVE" = "true" ]; then
     throttle_read "$THROTTLE_FILE"
+    debug_log "throttle_state" \
+        --argjson continue_count "$(json_num "$CONTINUE_COUNT" 0)" \
+        --argjson last_continue_time "$(json_num "$LAST_CONTINUE_TIME" 0)" \
+        --argjson current_time "$(json_num "$CURRENT_TIME" 0)"
     if throttle_should_force_stop "$MAX_CONTINUATIONS" "$THROTTLE_WINDOW_SECONDS"; then
+        debug_log "throttle_force_stop" \
+            --argjson continue_count "$(json_num "$CONTINUE_COUNT" 0)" \
+            --argjson max_continuations "$(json_num "$MAX_CONTINUATIONS" 3)"
         emit_decision "approve" "Maximum continuation cycles reached in time window, forcing stop to prevent infinite loops"
         throttle_clear "$THROTTLE_FILE"
         exit 0
@@ -251,21 +305,25 @@ fi
 
 # --- Transcript file validation (fail closed: approve stop on any error) ---
 if [ -z "$TRANSCRIPT_PATH" ]; then
+    debug_log "transcript_error" --arg reason "no_path"
     emit_decision "approve" "No transcript path provided"
     exit 0
 fi
 
 if [ ! -f "$TRANSCRIPT_PATH" ]; then
+    debug_log "transcript_error" --arg reason "not_found"
     emit_decision "approve" "Transcript file not found"
     exit 0
 fi
 
 if [ ! -r "$TRANSCRIPT_PATH" ]; then
+    debug_log "transcript_error" --arg reason "not_readable"
     emit_decision "approve" "Transcript file not readable"
     exit 0
 fi
 
 if [ ! -s "$TRANSCRIPT_PATH" ]; then
+    debug_log "transcript_error" --arg reason "empty"
     emit_decision "approve" "Transcript file is empty"
     exit 0
 fi
@@ -275,7 +333,11 @@ fi
 RECENT_CONTEXT=$(build_recent_context "$TRANSCRIPT_PATH")
 
 # Validate we got usable context
+CONTEXT_ENTRY_COUNT=$(echo "$RECENT_CONTEXT" | jq 'length // 0' 2>/dev/null || echo 0)
+debug_log "context_extracted" --argjson entry_count "$(json_num "$CONTEXT_ENTRY_COUNT" 0)"
+
 if [ -z "$RECENT_CONTEXT" ] || [ "$RECENT_CONTEXT" = "[]" ] || [ "$RECENT_CONTEXT" = "null" ]; then
+    debug_log "transcript_error" --arg reason "no_valid_entries"
     emit_decision "approve" "No valid transcript entries found"
     exit 0
 fi
@@ -290,9 +352,15 @@ EVALUATION_PROMPT=$(build_evaluation_prompt "$RECENT_CONTEXT")
 # Set environment variable to prevent recursion, use JSON schema, disable tools
 # Run claude in the dedicated working directory
 CLAUDE_RESPONSE=$(echo "$EVALUATION_PROMPT" | (cd "$CLAUDE_WORK_DIR" && CLAUDE_HOOK_JUDGE_MODE=true claude --print --model "$CLAUDE_MODEL" --output-format json --json-schema "$JSON_SCHEMA" --system-prompt "$SYSTEM_PROMPT" --disallowedTools '*') 2>/dev/null)
+CLAUDE_EXIT_CODE=$?
+
+debug_log "claude_invoked" \
+    --arg model "$CLAUDE_MODEL" \
+    --argjson exit_code "$(json_num "$CLAUDE_EXIT_CODE" 0)"
 
 # Check if claude command succeeded
-if [ $? -ne 0 ]; then
+if [ $CLAUDE_EXIT_CODE -ne 0 ]; then
+    debug_log "claude_error" --arg reason "command_failed"
     emit_decision "approve" "Claude evaluation command failed, allowing default stop behavior"
     exit 0
 fi
@@ -302,6 +370,7 @@ EVALUATION_RESULT=$(echo "$CLAUDE_RESPONSE" | jq -c 'if type=="array" then .[] e
 
 # If no structured output, fall back to allowing stop
 if [ -z "$EVALUATION_RESULT" ] || [ "$EVALUATION_RESULT" = "null" ]; then
+    debug_log "claude_error" --arg reason "parse_failed"
     emit_decision "approve" "Could not parse Claude evaluation result, allowing default stop behavior"
     exit 0
 fi
@@ -310,6 +379,12 @@ fi
 SHOULD_CONTINUE=$(echo "$EVALUATION_RESULT" | jq -r '.should_continue // false')
 REASONING=$(echo "$EVALUATION_RESULT" | jq -r '.reasoning // "No reasoning provided"')
 
+# Log evaluation result (boolean only, not reasoning content)
+HAS_REASONING=$( [ -n "$REASONING" ] && [ "$REASONING" != "No reasoning provided" ] && echo true || echo false )
+debug_log "evaluation_parsed" \
+    --argjson should_continue "$(json_bool "$SHOULD_CONTINUE" false)" \
+    --argjson has_reasoning "$(json_bool "$HAS_REASONING" false)"
+
 # Make the decision based on Claude's evaluation
 if [ "$SHOULD_CONTINUE" = "true" ]; then
     # Update throttle tracking
@@ -317,11 +392,19 @@ if [ "$SHOULD_CONTINUE" = "true" ]; then
     CONTINUE_COUNT=$((CONTINUE_COUNT + 1))
     throttle_write "$THROTTLE_FILE" "$CONTINUE_COUNT" "$CURRENT_TIME"
 
+    debug_log "decision" \
+        --arg decision "block" \
+        --argjson throttle_count "$(json_num "$CONTINUE_COUNT" 0)"
+
     # Block the stop - Claude thinks it can continue
     emit_decision "block" "Claude evaluator determined continuation is appropriate: $REASONING"
 else
     # Clear throttle file since we're allowing a legitimate stop
     throttle_clear "$THROTTLE_FILE"
+
+    debug_log "decision" \
+        --arg decision "approve" \
+        --argjson throttle_count 0
 
     # Allow the stop - Claude thinks stopping is appropriate
     emit_decision "approve" "Claude evaluator determined stopping is appropriate: $REASONING"
