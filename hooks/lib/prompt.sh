@@ -73,13 +73,14 @@ _build_dod_section() {
 
 ---
 
-DEFINITION OF DONE (HARD REQUIREMENTS):
+DEFINITION OF DONE (STRICT MODE):
 
-The user has defined these MANDATORY completion criteria. These are NOT suggestions:
+The user has defined these MANDATORY completion criteria:
 
 $DEFINITION_OF_DONE
 
-STRONGLY BIAS toward should_continue=true if ANY of these criteria appear unmet. The assistant should NOT stop until these are addressed or explicitly acknowledged as out of scope.
+STRICT MODE: Only approve STOP if (a) the DoD is explicitly met WITH evidence (test output, verification, etc.), OR (b) an unresolvable blocker requires the user.
+If criteria appear unmet or unclear, bias toward should_continue=true.
 EOF
     else
         # Default: advisory mode
@@ -87,13 +88,13 @@ EOF
 
 ---
 
-DEFINITION OF DONE (consider these project completion criteria):
+DEFINITION OF DONE (ADVISORY MODE):
 
-The user has defined these completion requirements. Factor them into your decision:
+The user has defined these completion criteria:
 
 $DEFINITION_OF_DONE
 
-If work appears incomplete according to these criteria and the assistant hasn't addressed them, lean toward continuing.
+ADVISORY MODE: Consider these criteria; if they appear unmet, lean toward continuing. Otherwise keep the base rule: Default to STOP when uncertain.
 EOF
     fi
 }
