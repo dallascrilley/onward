@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Double Shot Latte will be documented in this file.
+All notable changes to Redbull for Claude Code will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -76,7 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] - 2024-11-20
 
 ### Added
-- Initial release of Double Shot Latte plugin
+- Initial release of Redbull for Claude Code plugin
 - Claude-judged Stop hook that automatically evaluates continuation decisions
 - Aggressive continuation logic with time-based throttling (3 continuations per 5 minutes)
 - Recursion prevention via CLAUDE_HOOK_JUDGE_MODE environment variable

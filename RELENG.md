@@ -1,6 +1,6 @@
 # Release Engineering
 
-Documentation for maintaining and releasing Double Shot Latte plugin.
+Documentation for maintaining and releasing Redbull for Claude Code plugin.
 
 ## Version Management
 
