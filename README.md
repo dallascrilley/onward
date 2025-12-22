@@ -1,4 +1,4 @@
-# Double Shot Latte
+# Redbull for Claude Code
 
 **Stops "Would you like me to continue?" interruptions.**
 
