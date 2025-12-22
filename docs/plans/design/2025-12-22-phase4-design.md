@@ -156,9 +156,9 @@ export DEFINITION_OF_DONE
 export DOD_ENFORCEMENT
 ```
 
-#### 2. `hooks/lib/judge.sh` — Inject DoD Into Prompt
+#### 2. `hooks/lib/prompt.sh` — Inject DoD Into Prompt
 
-**Modify `build_evaluation_prompt()` to include DoD section:**
+**Modify `build_evaluation_prompt_with_rules()` (via DoD section) to include DoD guidance:**
 
 ```bash
 build_evaluation_prompt() {
@@ -210,20 +210,20 @@ source "$SCRIPT_DIR/lib/settings.sh"
 load_definition_of_done
 ```
 
-### Test Scenarios (10 New Files, 81–90)
+### Test Scenarios (10 New Files, 91–100)
 
 Each tests DoD interaction:
 
-- **81:** No DoD configured → judge uses default rules
-- **82:** DoD: "tests pass" + assistant says "tests pass" → stop
-- **83:** DoD: "tests pass" + assistant says "done" but no test output → continue (strict mode)
-- **84:** DoD: multiple criteria → stop when all listed
-- **85:** DoD advisory mode: work incomplete but no explicit criteria → judge can still stop
-- **86:** DoD strict mode: partial completion → force continue
-- **87:** DoD with blockers: unresolvable error → stop despite incomplete DoD
-- **88:** False positive guard: "tests pass" string appears but not actually verified
-- **89:** DoD with acceptance criteria: verify assistant addressed all
-- **90:** Dynamic DoD: changes between sessions (config update)
+- **91:** No DoD configured → judge uses default rules
+- **92:** DoD: "tests pass" + assistant says "tests pass" → stop
+- **93:** DoD: "tests pass" + assistant says "done" but no test output → continue (strict mode)
+- **94:** DoD: multiple criteria → stop when all listed
+- **95:** DoD advisory mode: work incomplete but no explicit criteria → judge can still stop
+- **96:** DoD strict mode: partial completion → force continue
+- **97:** DoD with blockers: unresolvable error → stop despite incomplete DoD
+- **98:** False positive guard: "tests pass" string appears but not actually verified
+- **99:** DoD with acceptance criteria: verify assistant addressed all
+- **100:** Dynamic DoD: changes between sessions (config update)
 
 ### Acceptance Criteria
 
@@ -232,7 +232,7 @@ Each tests DoD interaction:
 - [ ] Advisory mode: judge considers DoD but can override
 - [ ] Strict mode: judge refuses to stop until DoD plausibly met
 - [ ] All 10 new scenarios pass 5/5 runs
-- [ ] All 80 previous scenarios still pass
+- [ ] All 96 previous scenarios still pass (total: 106)
 - [ ] `explain.sh --verbose` shows whether DoD applied
 - [ ] Missing DoD = unchanged behavior from Phase 3
 
@@ -252,10 +252,10 @@ echo "$DEFINITION_OF_DONE"
 | File | Change | Why |
 |------|--------|-----|
 | `hooks/lib/settings.sh` | Add `load_definition_of_done()` | Parse DoD from config |
-| `hooks/lib/judge.sh` | Modify `build_evaluation_prompt()` | Inject DoD into prompt |
+| `hooks/lib/prompt.sh` | Modify `build_evaluation_prompt_with_rules()` | Inject DoD into prompt |
 | `hooks/claude-judge-continuation.sh` | Call `load_definition_of_done()` | Load config at runtime |
 | `.claude/redbull.local.md` (example) | Document DoD field | Config documentation |
-| `test/evals/scenarios/` | Add 10 new scenarios (81–90) | Test DoD logic |
+| `test/evals/scenarios/` | Add 10 new scenarios (91–100) | Test DoD logic |
 | `README.md` | Document DoD feature | User-facing docs |
 
 ### DoD Format Examples
@@ -326,7 +326,7 @@ Decision: Must continue (DoD not met)
 1. **Add DoD parsing** → `hooks/lib/settings.sh`
 2. **Inject into prompt** → `hooks/lib/judge.sh`
 3. **Load at runtime** → `hooks/claude-judge-continuation.sh`
-4. **Add test scenarios** → `test/evals/scenarios/81-90`
+4. **Add test scenarios** → `test/evals/scenarios/91-100`
 5. **Document** → README.md + example config
 
 ---
@@ -386,4 +386,3 @@ definition_of_done:
 - **Strict Mode:** Judge refuses to stop until DoD is met
 - **DoD Enforcement:** Level of strictness (advisory vs strict)
 - **Frontmatter:** YAML metadata in markdown file headers
-

@@ -54,21 +54,116 @@ get_project_rules() {
     fi
 }
 
+# Build DoD section based on enforcement mode
+# Returns: DoD prompt section or empty string if no DoD rules
+_build_dod_section() {
+    # Check if DEFINITION_OF_DONE is set and non-empty
+    [ -z "$DEFINITION_OF_DONE" ] && return 0
+
+    local enforcement="${DOD_ENFORCEMENT:-advisory}"
+
+    if [ "$enforcement" = "strict" ]; then
+        cat <<EOF
+
+---
+
+DEFINITION OF DONE (STRICT MODE):
+
+The user has defined these MANDATORY completion criteria:
+
+$DEFINITION_OF_DONE
+
+STRICT MODE: Only approve STOP if (a) the DoD is explicitly met WITH evidence (test output, verification, etc.), OR (b) an unresolvable blocker requires the user.
+If criteria appear unmet or unclear, bias toward should_continue=true.
+EOF
+    else
+        # Default: advisory mode
+        cat <<EOF
+
+---
+
+DEFINITION OF DONE (ADVISORY MODE):
+
+The user has defined these completion criteria:
+
+$DEFINITION_OF_DONE
+
+ADVISORY MODE: Consider these criteria; if they appear unmet, lean toward continuing. Otherwise keep the base rule: Default to STOP when uncertain.
+EOF
+    fi
+}
+
+# Build DoD section based on enforcement mode
+# Returns: DoD prompt section or empty string if no DoD rules
+_build_dod_section() {
+    # Check if DEFINITION_OF_DONE is set and non-empty
+    [ -z "$DEFINITION_OF_DONE" ] && return 0
+
+    local enforcement="${DOD_ENFORCEMENT:-advisory}"
+
+    if [ "$enforcement" = "strict" ]; then
+        cat <<EOF
+
+---
+
+DEFINITION OF DONE (STRICT MODE):
+
+The user has defined these MANDATORY completion criteria:
+
+$DEFINITION_OF_DONE
+
+STRICT MODE: Only approve STOP if (a) the DoD is explicitly met WITH evidence (test output, verification, etc.), OR (b) an unresolvable blocker requires the user.
+If criteria appear unmet or unclear, bias toward should_continue=true.
+EOF
+    else
+        # Default: advisory mode
+        cat <<EOF
+
+---
+
+DEFINITION OF DONE (ADVISORY MODE):
+
+The user has defined these completion criteria:
+
+$DEFINITION_OF_DONE
+
+ADVISORY MODE: Consider these criteria; if they appear unmet, lean toward continuing. Otherwise keep the base rule: Default to STOP when uncertain.
+EOF
+    fi
+}
+
 # Build evaluation prompt with optional project rules
 # Usage: EVALUATION_PROMPT=$(build_evaluation_prompt_with_rules "$RECENT_CONTEXT")
 build_evaluation_prompt_with_rules() {
     local context="$1"
     local base_prompt
     local rules
+    local dod_section
 
     # Get base prompt from judge.sh
     base_prompt=$(build_evaluation_prompt "$context")
 
     # Get project rules
     rules=$(get_project_rules)
+    # Get DoD section (settings should already be loaded)
+    dod_section=$(_build_dod_section)
 
     if [ -n "$rules" ]; then
-        cat <<EOF
+        if [ -n "$dod_section" ]; then
+            # Both rules and DoD
+            cat <<EOF
+$base_prompt
+
+---
+
+ADDITIONAL PROJECT RULES (apply these to your decision):
+
+$rules
+${dod_section}
+EOF
+        else
+            # Rules only, no DoD
+            cat <<EOF
 $base_prompt
 
 ---
@@ -77,7 +172,15 @@ ADDITIONAL PROJECT RULES (apply these to your decision):
 
 $rules
 EOF
+        fi
     else
-        echo "$base_prompt"
+        if [ -n "$dod_section" ]; then
+            # DoD only, no rules
+            echo "$base_prompt"
+            echo "$dod_section"
+        else
+            # Neither rules nor DoD
+            echo "$base_prompt"
+        fi
     fi
 }

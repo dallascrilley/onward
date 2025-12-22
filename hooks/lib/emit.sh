@@ -13,6 +13,8 @@ persist_decision() {
     local reason="$2"
     local timestamp
     timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    local dod_rules_count=0
+    local dod_enforcement=""
 
     # Pseudocode: if running in judge mode, skip persistence to avoid overwriting user decisions
     if [ "${CLAUDE_HOOK_JUDGE_MODE:-false}" = "true" ]; then
@@ -21,6 +23,11 @@ persist_decision() {
 
     # Ensure decision directory exists
     mkdir -p "$DECISION_DIR" 2>/dev/null || return 0
+
+    if [ -n "${DEFINITION_OF_DONE:-}" ]; then
+        dod_rules_count=$(printf '%s\n' "$DEFINITION_OF_DONE" | awk 'NF{count++} END{print count+0}')
+        dod_enforcement="${DOD_ENFORCEMENT:-advisory}"
+    fi
 
     # Build the decision record with available context
     local decision_json
@@ -33,13 +40,19 @@ persist_decision() {
                 --arg dec "$decision" \
                 --arg reason "$reason" \
                 --argjson eval "$PERSIST_EVALUATION_RESULT" \
+                --arg dod_enforcement "$dod_enforcement" \
+                --argjson dod_rules_count "$dod_rules_count" \
                 '{
                     timestamp: $ts,
                     session_id: $sid,
                     decision: $dec,
                     reason: $reason,
                     evaluation: $eval
-                }') || return 0
+                }
+                | if $dod_rules_count > 0
+                  then . + {dod_enforcement: $dod_enforcement, dod_rules_count: $dod_rules_count}
+                  else .
+                  end') || return 0
         else
             decision_json=$(jq -n \
                 --arg ts "$timestamp" \
@@ -47,13 +60,19 @@ persist_decision() {
                 --arg dec "$decision" \
                 --arg reason "$reason" \
                 --arg eval_raw "$PERSIST_EVALUATION_RESULT" \
+                --arg dod_enforcement "$dod_enforcement" \
+                --argjson dod_rules_count "$dod_rules_count" \
                 '{
                     timestamp: $ts,
                     session_id: $sid,
                     decision: $dec,
                     reason: $reason,
                     evaluation_raw: $eval_raw
-                }') || return 0
+                }
+                | if $dod_rules_count > 0
+                  then . + {dod_enforcement: $dod_enforcement, dod_rules_count: $dod_rules_count}
+                  else .
+                  end') || return 0
         fi
     else
         decision_json=$(jq -n \
@@ -61,12 +80,18 @@ persist_decision() {
             --arg sid "$PERSIST_SESSION_ID" \
             --arg dec "$decision" \
             --arg reason "$reason" \
+            --arg dod_enforcement "$dod_enforcement" \
+            --argjson dod_rules_count "$dod_rules_count" \
             '{
                 timestamp: $ts,
                 session_id: $sid,
                 decision: $dec,
                 reason: $reason
-            }') || return 0
+            }
+            | if $dod_rules_count > 0
+              then . + {dod_enforcement: $dod_enforcement, dod_rules_count: $dod_rules_count}
+              else .
+              end') || return 0
     fi
 
     # Write last decision atomically
