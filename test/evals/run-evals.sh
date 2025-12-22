@@ -14,12 +14,13 @@ HOOK_SCRIPT="$SCRIPT_DIR/../../hooks/claude-judge-continuation.sh"
 TEMP_DIR="/tmp/hook-evals-$$"
 
 # Configuration with environment variable overrides
-EVAL_PROVIDER=${EVAL_PROVIDER:-stub}
+EVAL_OFFLINE=${EVAL_OFFLINE:-0}
 RUNS_PER_SCENARIO=${RUNS_PER_SCENARIO:-5}
 SCENARIO_GLOB=${SCENARIO_GLOB:-*.json}
 
-# Inject stub claude binary into PATH for fast testing (default)
-if [ "$EVAL_PROVIDER" = "stub" ]; then
+# Inject stub claude binary into PATH for deterministic offline testing (opt-in)
+if [ "$EVAL_OFFLINE" = "1" ]; then
+    echo "OFFLINE MODE: Using stub claude binary (deterministic, no network)" >&2
     export PATH="$SCRIPT_DIR/bin:$PATH"
 fi
 
@@ -297,8 +298,8 @@ for scenario_file in "$SCENARIOS_DIR"/$SCENARIO_GLOB; do
                 "session_id": "eval-test-session"
             }')
 
-        # Run the hook script (pass expected_decision only in stub mode)
-        if [ "$EVAL_PROVIDER" = "stub" ]; then
+        # Run the hook script (pass expected_decision only in offline/stub mode)
+        if [ "$EVAL_OFFLINE" = "1" ]; then
             hook_output=$(echo "$hook_event" | STUB_EXPECTED_DECISION="$expected_decision" "$HOOK_SCRIPT" 2>&1)
         else
             hook_output=$(echo "$hook_event" | "$HOOK_SCRIPT" 2>&1)
@@ -356,8 +357,8 @@ for scenario_file in "$SCENARIOS_DIR"/$SCENARIO_GLOB; do
     echo ""
 done
 
-# Only run file/NDJSON guard cases in stub mode (avoids real model calls)
-if [ "$EVAL_PROVIDER" = "stub" ]; then
+# Only run file/NDJSON guard cases in offline mode (avoids real model calls)
+if [ "$EVAL_OFFLINE" = "1" ]; then
     run_transcript_validation_cases
 fi
 
