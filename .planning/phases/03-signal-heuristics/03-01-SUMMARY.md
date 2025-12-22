@@ -20,14 +20,24 @@
 - Created 10 new test scenarios (81-90) for heuristic signal paths
 - All 96 scenarios pass 5/5 runs
 
-## Signal Types Implemented
+## Signal Types Implemented (4 of 7)
 
-| Signal | Detection | Decision |
-|--------|-----------|----------|
-| `asking_for_clarification` | "can you clarify?", "what should?" (requires ?) | STOP (approve) |
-| `missing_information` | "need credentials", "can't proceed without" (no ? needed) | STOP (approve) |
-| `explicit_next_steps` | "Next I'll", "Then I will", "Moving on to" | CONTINUE (block) |
-| `stated_todo_items` | Numbered/bulleted list with "pending", "todo", "need to" | CONTINUE (block) |
+| Signal | Detection | Decision | Priority |
+|--------|-----------|----------|----------|
+| `asking_for_clarification` | "can you clarify?", "what should?" (requires ?) | STOP (approve) | 1st |
+| `missing_information` | "need credentials", "can't proceed without" (no ? needed) | STOP (approve) | 2nd |
+| `explicit_next_steps` | "Next I'll", "Then I will", "Moving on to" | CONTINUE (block) | 3rd |
+| `stated_todo_items` | Numbered/bulleted list with "pending", "todo", "need to" | CONTINUE (block) | 4th |
+
+**First match wins** - if multiple signals present, earlier priority takes precedence.
+
+## Signals Deferred to Phase 1 / Judge
+
+| Signal | Why Deferred |
+|--------|--------------|
+| `asking_for_approval` | Covered by Phase 1 `explicit_choice_required` ("does this look good?") |
+| `asking_for_decision` | Covered by Phase 1 `explicit_choice_required` ("which option?") |
+| `offering_optional_work` | Covered by Phase 1 `optional_offer` (requires explicit framing) |
 
 ## Files Created/Modified
 
