@@ -5,6 +5,13 @@
 # Uses another Claude instance to judge whether continuation is appropriate
 # DEFAULT STANCE: Continue unless there's a CLEAR reason to stop
 
+# Configuration constants
+MAX_CONTINUATIONS=3
+THROTTLE_WINDOW_SECONDS=300
+TRANSCRIPT_CONTEXT_LINES=10
+CLAUDE_MODEL="haiku"
+CLAUDE_WORK_DIR="$HOME/.claude/double-shot-latte"
+
 # Single output emitter - all stdout JSON goes through here
 emit_decision() {
     local decision="$1"
@@ -32,7 +39,7 @@ CURRENT_TIME=$(date +%s)
 
 # If this is already a continuation from a previous stop hook, check time throttling
 if [ "$STOP_HOOK_ACTIVE" = "true" ]; then
-    # Allow up to 3 continuations in 5 minutes, then force stop
+    # Allow up to $MAX_CONTINUATIONS continuations in the time window, then force stop
     CONTINUE_COUNT=0
     LAST_CONTINUE_TIME=0
     if [ -f "$THROTTLE_FILE" ]; then
@@ -43,13 +50,13 @@ if [ "$STOP_HOOK_ACTIVE" = "true" ]; then
 
     TIME_SINCE_LAST=$((CURRENT_TIME - LAST_CONTINUE_TIME))
 
-    # Reset counter if it's been more than 5 minutes
-    if [ "$TIME_SINCE_LAST" -gt 300 ]; then
+    # Reset counter if it's been more than the time window
+    if [ "$TIME_SINCE_LAST" -gt "$THROTTLE_WINDOW_SECONDS" ]; then
         CONTINUE_COUNT=0
     fi
 
     # If we've continued too many times recently, force stop
-    if [ "$CONTINUE_COUNT" -ge 3 ] && [ "$TIME_SINCE_LAST" -lt 300 ]; then
+    if [ "$CONTINUE_COUNT" -ge "$MAX_CONTINUATIONS" ] && [ "$TIME_SINCE_LAST" -lt "$THROTTLE_WINDOW_SECONDS" ]; then
         emit_decision "approve" "Maximum continuation cycles reached in time window, forcing stop to prevent infinite loops"
         rm -f "$THROTTLE_FILE"
         exit 0
@@ -64,7 +71,7 @@ fi
 
 # Extract the last few exchanges from the transcript (Claude's response + context)
 # We want the most recent assistant message and some preceding context
-RECENT_CONTEXT=$(tail -n 10 "$TRANSCRIPT_PATH" | jq -s '.')
+RECENT_CONTEXT=$(tail -n "$TRANSCRIPT_CONTEXT_LINES" "$TRANSCRIPT_PATH" | jq -s '.')
 
 # Create a JSON schema for the response
 JSON_SCHEMA='{"type":"object","properties":{"should_continue":{"type":"boolean"},"reasoning":{"type":"string"}},"required":["should_continue","reasoning"]}'
@@ -73,7 +80,6 @@ JSON_SCHEMA='{"type":"object","properties":{"should_continue":{"type":"boolean"}
 SYSTEM_PROMPT="You are a conversation state classifier. Your only job is to analyze conversation transcripts and determine if the assistant has more autonomous work to do. You output structured JSON. You do not write code or use tools."
 
 # Ensure the working directory exists
-CLAUDE_WORK_DIR="$HOME/.claude/double-shot-latte"
 mkdir -p "$CLAUDE_WORK_DIR"
 
 # Create the evaluation prompt
@@ -110,7 +116,7 @@ Default to STOP when uncertain."
 # Use claude --print to get the evaluation with structured output
 # Set environment variable to prevent recursion, use JSON schema, disable tools
 # Run claude in the dedicated working directory
-CLAUDE_RESPONSE=$(echo "$EVALUATION_PROMPT" | (cd "$CLAUDE_WORK_DIR" && CLAUDE_HOOK_JUDGE_MODE=true claude --print --model haiku --output-format json --json-schema "$JSON_SCHEMA" --system-prompt "$SYSTEM_PROMPT" --disallowedTools '*') 2>/dev/null)
+CLAUDE_RESPONSE=$(echo "$EVALUATION_PROMPT" | (cd "$CLAUDE_WORK_DIR" && CLAUDE_HOOK_JUDGE_MODE=true claude --print --model "$CLAUDE_MODEL" --output-format json --json-schema "$JSON_SCHEMA" --system-prompt "$SYSTEM_PROMPT" --disallowedTools '*') 2>/dev/null)
 
 # Check if claude command succeeded
 if [ $? -ne 0 ]; then
