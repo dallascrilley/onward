@@ -132,6 +132,12 @@ throttle_clear() {
 # Read the hook event data
 EVENT=$(cat)
 
+# Validate input is valid JSON
+if ! echo "$EVENT" | jq empty 2>/dev/null; then
+    emit_decision "approve" "Invalid JSON input: could not parse hook event"
+    exit 0
+fi
+
 # Extract key information
 STOP_HOOK_ACTIVE=$(echo "$EVENT" | jq -r '.stop_hook_active // false')
 TRANSCRIPT_PATH=$(echo "$EVENT" | jq -r '.transcript_path // ""')
