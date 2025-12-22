@@ -1,0 +1,20 @@
+{
+  "name": "DoD advisory: Genuine question overrides DoD",
+  "description": "Assistant asking genuine decision question. Should stop even with DoD active.",
+  "expected_decision": false,
+  "expected_path": "judge",
+  "dod_config": {
+    "dod_enforcement": "advisory",
+    "definition_of_done": ["Always run tests before stopping"]
+  },
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Set up the database schema"
+    },
+    {
+      "role": "assistant",
+      "content": "Before I create the database schema, I need to understand your requirements better.\n\nWhich database system would you like to use? PostgreSQL is good for complex queries, MySQL is widely supported, or SQLite for simple file-based storage.\n\nWhich option do you prefer?"
+    }
+  ]
+}

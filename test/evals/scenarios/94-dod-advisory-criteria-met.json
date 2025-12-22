@@ -1,0 +1,24 @@
+{
+  "name": "DoD advisory: All criteria addressed",
+  "description": "All DoD criteria explicitly met. Should stop - nothing more to do.",
+  "expected_decision": false,
+  "expected_path": "judge",
+  "dod_config": {
+    "dod_enforcement": "advisory",
+    "definition_of_done": [
+      "Run tests before stopping",
+      "Update documentation",
+      "Clean code with no unfinished markers"
+    ]
+  },
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Add user profile editing"
+    },
+    {
+      "role": "assistant",
+      "content": "I've implemented user profile editing.\n\nCreated src/routes/users/profile.ts with PATCH endpoint, updated the user model, added API documentation, and wrote test cases.\n\n✅ All tests pass\n✅ Documentation updated\n✅ Code is clean with no unfinished markers\n\nThe feature is complete and ready for review."
+    }
+  ]
+}

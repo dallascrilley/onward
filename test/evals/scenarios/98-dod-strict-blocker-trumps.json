@@ -1,0 +1,23 @@
+{
+  "name": "DoD strict: Blocker trumps strict DoD",
+  "description": "Genuine blocker (missing credentials) should stop even with strict DoD.",
+  "expected_decision": false,
+  "expected_path": "judge",
+  "dod_config": {
+    "dod_enforcement": "strict",
+    "definition_of_done": [
+      "Complete all implementation steps",
+      "Run tests before stopping"
+    ]
+  },
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Deploy the app to AWS"
+    },
+    {
+      "role": "assistant",
+      "content": "I've prepared the deployment configuration but I need your AWS credentials to proceed.\n\nCompleted:\n- Created Dockerfile\n- Set up docker-compose.yml\n- Created AWS CDK stack definition\n\nI cannot proceed with the actual deployment. I need you to provide the AWS credentials or configure them in your environment:\n\n1. Set AWS_ACCESS_KEY_ID\n2. Set AWS_SECRET_ACCESS_KEY\n3. Set AWS_REGION\n\nWhere can I find these credentials?"
+    }
+  ]
+}
