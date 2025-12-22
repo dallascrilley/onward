@@ -187,6 +187,44 @@ if [[ "$VERBOSE" == "true" ]]; then
             echo "  DoD Rules:     $DOD_RULES_COUNT"
         fi
 
+        # Stall Detection section (Phase 5)
+        STALL_RISK=$(echo "$DECISION_JSON" | jq -r '.stall_risk // empty')
+        STALL_CONTEXT_HASH=$(echo "$DECISION_JSON" | jq -r '.context_hash // empty')
+        if [[ -n "$STALL_RISK" && "$STALL_RISK" != "null" ]]; then
+            echo ""
+            echo "Stall Detection:"
+            echo "  Risk Score:    $STALL_RISK/100"
+
+            # Status display based on risk level
+            if [[ "$STALL_RISK" -gt 70 ]]; then
+                echo "  Status:        HIGH RISK"
+                echo "  Recommendation: Consider manual stop or reframe work"
+            elif [[ "$STALL_RISK" -gt 40 ]]; then
+                echo "  Status:        MODERATE RISK"
+                echo "  Recommendation: Monitor for repeated patterns"
+            else
+                echo "  Status:        Low risk"
+            fi
+
+            if [[ -n "$STALL_CONTEXT_HASH" && "$STALL_CONTEXT_HASH" != "null" ]]; then
+                echo "  Context Hash:  ${STALL_CONTEXT_HASH:0:16}..."
+            fi
+        fi
+
+        USER_OVERRIDE=$(echo "$DECISION_JSON" | jq -r '.user_override // empty')
+        if [[ "$USER_OVERRIDE" != "null" && "$USER_OVERRIDE" != "" ]]; then
+            OVERRIDE_SIGNAL=$(echo "$USER_OVERRIDE" | jq -r '.signal // empty')
+            OVERRIDE_REASON=$(echo "$USER_OVERRIDE" | jq -r '.reason // empty')
+            echo ""
+            echo "User Override:"
+            if [[ -n "$OVERRIDE_SIGNAL" && "$OVERRIDE_SIGNAL" != "null" ]]; then
+                echo "  Override Signal: $OVERRIDE_SIGNAL"
+            fi
+            if [[ -n "$OVERRIDE_REASON" && "$OVERRIDE_REASON" != "null" ]]; then
+                echo "  Override Reason: $OVERRIDE_REASON"
+            fi
+        fi
+
     elif [[ "$EVAL_RAW_EXISTS" == "true" ]]; then
         # evaluation_raw exists when the evaluation response wasn't valid JSON
         EVAL_RAW=$(echo "$DECISION_JSON" | jq -r '.evaluation_raw // "N/A"')

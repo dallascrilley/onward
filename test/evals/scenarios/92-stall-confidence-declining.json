@@ -1,0 +1,16 @@
+{
+  "name": "Stall: Uncertain progress with hedging language",
+  "description": "Assistant uses hedging language suggesting declining confidence. Should stop to get user input.",
+  "expected_decision": false,
+  "notes": "Phrases like 'might be', 'could be', 'not sure' indicate uncertainty. With stall detection, declining confidence across multiple decisions would trigger stricter thresholds.",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Optimize the database queries"
+    },
+    {
+      "role": "assistant",
+      "content": "I've tried a few approaches. The first optimization might help, but I'm not sure if it's the right one. It could be that we need to look at this differently. I'm less confident about this than I was initially."
+    }
+  ]
+}
