@@ -1,0 +1,16 @@
+{
+  "name": "Heuristic: Asking for approval",
+  "description": "Assistant asks for approval/validation with question mark. Heuristic should detect and approve stop without judge.",
+  "expected_decision": false,
+  "expected_path": "heuristic",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Create a landing page for our product"
+    },
+    {
+      "role": "assistant",
+      "content": "I've created landing page with hero section, features, and contact form. Does this layout look good? Is color scheme appropriate for our brand?"
+    }
+  ]
+}

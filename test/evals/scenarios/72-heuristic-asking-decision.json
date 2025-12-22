@@ -1,0 +1,16 @@
+{
+  "name": "Heuristic: Asking for decision",
+  "description": "Assistant asks user to choose between options with question mark. Heuristic should detect and approve stop without judge.",
+  "expected_decision": false,
+  "expected_path": "heuristic",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Implement a payment processing system"
+    },
+    {
+      "role": "assistant",
+      "content": "I can implement payment processing using either Stripe or PayPal. Which payment gateway would you prefer? Should I use Stripe for its developer-friendly API or PayPal for broader user base?"
+    }
+  ]
+}
