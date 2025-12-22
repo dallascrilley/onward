@@ -6,6 +6,11 @@
 # - Only stdout contains JSON (no debug output)
 # - Easy to test and mock
 # - Decision persistence for debugging (FTR-005)
+# - Stall metadata persistence (Phase 5)
+#
+# Stall metadata environment variables (optional):
+# - PERSIST_STALL_RISK: 0-100 stall risk score
+# - PERSIST_CONTEXT_HASH: 16-char context fingerprint
 
 # Persists the decision to last_decision.json and optionally to decision_log.jsonl
 persist_decision() {
@@ -29,6 +34,10 @@ persist_decision() {
         dod_enforcement="${DOD_ENFORCEMENT:-advisory}"
     fi
 
+    # Stall metadata (Phase 5) - optional
+    local stall_risk="${PERSIST_STALL_RISK:-}"
+    local context_hash="${PERSIST_CONTEXT_HASH:-}"
+
     # Build the decision record with available context
     local decision_json
     if [ -n "$PERSIST_EVALUATION_RESULT" ] && [ "$PERSIST_EVALUATION_RESULT" != "null" ]; then
@@ -42,6 +51,8 @@ persist_decision() {
                 --argjson eval "$PERSIST_EVALUATION_RESULT" \
                 --arg dod_enforcement "$dod_enforcement" \
                 --argjson dod_rules_count "$dod_rules_count" \
+                --arg stall_risk "$stall_risk" \
+                --arg context_hash "$context_hash" \
                 '{
                     timestamp: $ts,
                     session_id: $sid,
@@ -51,6 +62,10 @@ persist_decision() {
                 }
                 | if $dod_rules_count > 0
                   then . + {dod_enforcement: $dod_enforcement, dod_rules_count: $dod_rules_count}
+                  else .
+                  end
+                | if $stall_risk != ""
+                  then . + {stall_risk: ($stall_risk | tonumber), context_hash: $context_hash}
                   else .
                   end') || return 0
         else
@@ -62,6 +77,8 @@ persist_decision() {
                 --arg eval_raw "$PERSIST_EVALUATION_RESULT" \
                 --arg dod_enforcement "$dod_enforcement" \
                 --argjson dod_rules_count "$dod_rules_count" \
+                --arg stall_risk "$stall_risk" \
+                --arg context_hash "$context_hash" \
                 '{
                     timestamp: $ts,
                     session_id: $sid,
@@ -71,6 +88,10 @@ persist_decision() {
                 }
                 | if $dod_rules_count > 0
                   then . + {dod_enforcement: $dod_enforcement, dod_rules_count: $dod_rules_count}
+                  else .
+                  end
+                | if $stall_risk != ""
+                  then . + {stall_risk: ($stall_risk | tonumber), context_hash: $context_hash}
                   else .
                   end') || return 0
         fi
@@ -82,6 +103,8 @@ persist_decision() {
             --arg reason "$reason" \
             --arg dod_enforcement "$dod_enforcement" \
             --argjson dod_rules_count "$dod_rules_count" \
+            --arg stall_risk "$stall_risk" \
+            --arg context_hash "$context_hash" \
             '{
                 timestamp: $ts,
                 session_id: $sid,
@@ -90,6 +113,10 @@ persist_decision() {
             }
             | if $dod_rules_count > 0
               then . + {dod_enforcement: $dod_enforcement, dod_rules_count: $dod_rules_count}
+              else .
+              end
+            | if $stall_risk != ""
+              then . + {stall_risk: ($stall_risk | tonumber), context_hash: $context_hash}
               else .
               end') || return 0
     fi
@@ -142,4 +169,22 @@ emit_decision() {
 
     # Emit the decision JSON to stdout
     jq -n --arg d "$decision" --arg r "$reason" '{"decision": $d, "reason": $r}'
+}
+
+# Helper to build stall metadata JSON fragment
+# Args: stall_risk (0-100), context_hash (string)
+# Returns: JSON fragment for inclusion in decision record
+emit_stall_metadata() {
+    local stall_risk="$1"
+    local context_hash="$2"
+
+    if [ -z "$stall_risk" ] && [ -z "$context_hash" ]; then
+        echo "{}"
+        return 0
+    fi
+
+    jq -n \
+        --argjson stall_risk "${stall_risk:-0}" \
+        --arg context_hash "${context_hash:-}" \
+        '{stall_risk: $stall_risk, context_hash: $context_hash}'
 }
