@@ -5,9 +5,16 @@
 # Uses another Claude instance to judge whether continuation is appropriate
 # DEFAULT STANCE: Continue unless there's a CLEAR reason to stop
 
+# Single output emitter - all stdout JSON goes through here
+emit_decision() {
+    local decision="$1"
+    local reason="$2"
+    jq -n --arg d "$decision" --arg r "$reason" '{"decision": $d, "reason": $r}'
+}
+
 # Check if we're in a recursive call (judge Claude instance)
 if [ "$CLAUDE_HOOK_JUDGE_MODE" = "true" ]; then
-    echo '{"decision": "approve", "reason": "Running in judge mode, allowing stop"}'
+    emit_decision "approve" "Running in judge mode, allowing stop"
     exit 0
 fi
 
@@ -43,7 +50,7 @@ if [ "$STOP_HOOK_ACTIVE" = "true" ]; then
 
     # If we've continued too many times recently, force stop
     if [ "$CONTINUE_COUNT" -ge 3 ] && [ "$TIME_SINCE_LAST" -lt 300 ]; then
-        echo '{"decision": "approve", "reason": "Maximum continuation cycles reached in time window, forcing stop to prevent infinite loops"}'
+        emit_decision "approve" "Maximum continuation cycles reached in time window, forcing stop to prevent infinite loops"
         rm -f "$THROTTLE_FILE"
         exit 0
     fi
@@ -51,7 +58,7 @@ fi
 
 # Check if we have a transcript path
 if [ -z "$TRANSCRIPT_PATH" ] || [ ! -f "$TRANSCRIPT_PATH" ]; then
-    echo '{"decision": "approve", "reason": "No transcript available for evaluation"}'
+    emit_decision "approve" "No transcript available for evaluation"
     exit 0
 fi
 
@@ -107,7 +114,7 @@ CLAUDE_RESPONSE=$(echo "$EVALUATION_PROMPT" | (cd "$CLAUDE_WORK_DIR" && CLAUDE_H
 
 # Check if claude command succeeded
 if [ $? -ne 0 ]; then
-    echo '{"decision": "approve", "reason": "Claude evaluation command failed, allowing default stop behavior"}'
+    emit_decision "approve" "Claude evaluation command failed, allowing default stop behavior"
     exit 0
 fi
 
@@ -116,7 +123,7 @@ EVALUATION_RESULT=$(echo "$CLAUDE_RESPONSE" | jq '.[] | select(.type == "result"
 
 # If no structured output, fall back to allowing stop
 if [ -z "$EVALUATION_RESULT" ] || [ "$EVALUATION_RESULT" = "null" ]; then
-    echo '{"decision": "approve", "reason": "Could not parse Claude evaluation result, allowing default stop behavior"}'
+    emit_decision "approve" "Could not parse Claude evaluation result, allowing default stop behavior"
     exit 0
 fi
 
@@ -137,19 +144,13 @@ if [ "$SHOULD_CONTINUE" = "true" ]; then
     echo "$CONTINUE_COUNT:$CURRENT_TIME" > "$THROTTLE_FILE"
 
     # Block the stop - Claude thinks it can continue
-    jq -n --arg reason "Claude evaluator determined continuation is appropriate: $REASONING" '{
-        "decision": "block",
-        "reason": $reason
-    }'
+    emit_decision "block" "Claude evaluator determined continuation is appropriate: $REASONING"
 else
     # Clear throttle file since we're allowing a legitimate stop
     rm -f "$THROTTLE_FILE"
 
     # Allow the stop - Claude thinks stopping is appropriate
-    jq -n --arg reason "Claude evaluator determined stopping is appropriate: $REASONING" '{
-        "decision": "approve",
-        "reason": $reason
-    }'
+    emit_decision "approve" "Claude evaluator determined stopping is appropriate: $REASONING"
 fi
 
 exit 0
