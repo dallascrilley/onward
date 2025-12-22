@@ -6,7 +6,7 @@
 set -euo pipefail
 
 # Configuration (allow env overrides for custom work dirs)
-DECISION_DIR="${DECISION_DIR:-${CLAUDE_WORK_DIR:-$HOME/.claude/double-shot-latte}}"
+DECISION_DIR="${DECISION_DIR:-${CLAUDE_WORK_DIR:-$HOME/.claude/redbull}}"
 LAST_DECISION_FILE="${LAST_DECISION_FILE:-$DECISION_DIR/last_decision.json}"
 
 # Parse arguments
@@ -26,7 +26,7 @@ while [[ $# -gt 0 ]]; do
         -h|--help)
             echo "Usage: $(basename "$0") [OPTIONS]"
             echo ""
-            echo "Display the last judge decision from the double-shot-latte plugin."
+            echo "Display the last judge decision from the redbull plugin."
             echo ""
             echo "Options:"
             echo "  -v, --verbose    Show full decision details including evaluation"

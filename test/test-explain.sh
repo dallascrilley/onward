@@ -28,7 +28,7 @@ EXPLAIN_SCRIPT="$REPO_ROOT/scripts/explain.sh"
 
 # Test isolation: use temp directory for ~/.claude
 TEST_HOME=$(mktemp -d)
-TEST_DECISION_DIR="$TEST_HOME/.claude/double-shot-latte"
+TEST_DECISION_DIR="$TEST_HOME/.claude/redbull"
 ORIGINAL_HOME="$HOME"
 
 # Cleanup on exit
