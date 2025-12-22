@@ -246,6 +246,83 @@ else
     fail "Early exit decisions persist" "Decision file not updated"
 fi
 
+# --- Test 9: explain.sh respects DECISION_DIR override ---
+echo "Test 9: explain.sh respects DECISION_DIR override"
+
+# Pseudocode: write decision in custom dir -> run explain.sh with DECISION_DIR -> expect output to include session id
+CUSTOM_DECISION_DIR="$TEST_HOME/.claude/custom-latte"
+mkdir -p "$CUSTOM_DECISION_DIR"
+cat > "$CUSTOM_DECISION_DIR/last_decision.json" << 'EOF'
+{
+  "timestamp": "2025-12-22T00:00:00Z",
+  "session_id": "custom-001",
+  "decision": "approve",
+  "reason": "Custom decision dir test"
+}
+EOF
+
+OUTPUT=$(DECISION_DIR="$CUSTOM_DECISION_DIR" "$EXPLAIN_SCRIPT" 2>&1)
+if echo "$OUTPUT" | grep -q "custom-001"; then
+    pass "explain.sh respects DECISION_DIR override"
+else
+    fail "explain.sh respects DECISION_DIR override" "Expected session_id from custom decision dir"
+fi
+
+# --- Test 10: Judge mode does not overwrite last decision ---
+echo "Test 10: Judge mode does not overwrite last decision"
+
+# Pseudocode: write sentinel decision -> run hook in judge mode -> ensure file unchanged
+cat > "$TEST_DECISION_DIR/last_decision.json" << 'EOF'
+{
+  "timestamp": "2025-12-22T01:00:00Z",
+  "session_id": "sentinel-001",
+  "decision": "approve",
+  "reason": "Sentinel decision"
+}
+EOF
+
+SENTINEL_CONTENT=$(cat "$TEST_DECISION_DIR/last_decision.json")
+CLAUDE_HOOK_JUDGE_MODE=true "$HOOK_SCRIPT" < /dev/null > /dev/null 2>&1
+UPDATED_CONTENT=$(cat "$TEST_DECISION_DIR/last_decision.json")
+
+if [[ "$UPDATED_CONTENT" == "$SENTINEL_CONTENT" ]]; then
+    pass "Judge mode does not overwrite last_decision.json"
+else
+    fail "Judge mode does not overwrite last_decision.json" "Decision file was modified during judge mode"
+fi
+
+# --- Test 11: Invalid evaluation JSON does not corrupt decision file ---
+echo "Test 11: Invalid evaluation JSON does not corrupt decision file"
+
+# Pseudocode: call emit_decision with invalid evaluation JSON -> expect valid last_decision.json
+INVALID_DECISION_DIR="$TEST_HOME/.claude/invalid-eval"
+mkdir -p "$INVALID_DECISION_DIR"
+
+set +e
+(
+    set +e
+    source "$REPO_ROOT/hooks/lib/config.sh"
+    source "$REPO_ROOT/hooks/lib/emit.sh"
+    load_defaults
+    DECISION_DIR="$INVALID_DECISION_DIR"
+    LAST_DECISION_FILE="$DECISION_DIR/last_decision.json"
+    PERSIST_SESSION_ID="test-invalid-json"
+    PERSIST_EVALUATION_RESULT='{"bad":'
+    emit_decision "approve" "Invalid evaluation test" > /dev/null 2>&1
+)
+EMIT_STATUS=$?
+set -e
+
+if [[ $EMIT_STATUS -ne 0 ]]; then
+    fail "Invalid evaluation JSON handling" "emit_decision exited with $EMIT_STATUS"
+elif [[ ! -f "$INVALID_DECISION_DIR/last_decision.json" ]]; then
+    fail "Invalid evaluation JSON handling" "Decision file not created"
+elif jq -e '.timestamp and .session_id and .decision and .reason' "$INVALID_DECISION_DIR/last_decision.json" > /dev/null 2>&1; then
+    pass "Invalid evaluation JSON does not corrupt decision file"
+else
+    fail "Invalid evaluation JSON handling" "Decision file contains invalid JSON"
+fi
+
 # --- Summary ---
 echo ""
 echo "=========================================="

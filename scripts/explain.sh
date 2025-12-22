@@ -5,9 +5,9 @@
 
 set -euo pipefail
 
-# Configuration
-DECISION_DIR="$HOME/.claude/double-shot-latte"
-LAST_DECISION_FILE="$DECISION_DIR/last_decision.json"
+# Configuration (allow env overrides for custom work dirs)
+DECISION_DIR="${DECISION_DIR:-${CLAUDE_WORK_DIR:-$HOME/.claude/double-shot-latte}}"
+LAST_DECISION_FILE="${LAST_DECISION_FILE:-$DECISION_DIR/last_decision.json}"
 
 # Parse arguments
 VERBOSE=false

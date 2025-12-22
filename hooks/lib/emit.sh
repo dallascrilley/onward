@@ -14,25 +14,47 @@ persist_decision() {
     local timestamp
     timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
+    # Pseudocode: if running in judge mode, skip persistence to avoid overwriting user decisions
+    if [ "${CLAUDE_HOOK_JUDGE_MODE:-false}" = "true" ]; then
+        return 0
+    fi
+
     # Ensure decision directory exists
     mkdir -p "$DECISION_DIR" 2>/dev/null || return 0
 
     # Build the decision record with available context
     local decision_json
     if [ -n "$PERSIST_EVALUATION_RESULT" ] && [ "$PERSIST_EVALUATION_RESULT" != "null" ]; then
-        decision_json=$(jq -n \
-            --arg ts "$timestamp" \
-            --arg sid "$PERSIST_SESSION_ID" \
-            --arg dec "$decision" \
-            --arg reason "$reason" \
-            --argjson eval "$PERSIST_EVALUATION_RESULT" \
-            '{
-                timestamp: $ts,
-                session_id: $sid,
-                decision: $dec,
-                reason: $reason,
-                evaluation: $eval
-            }')
+        # Pseudocode: if evaluation JSON is invalid, store it as a raw string instead
+        if echo "$PERSIST_EVALUATION_RESULT" | jq -e . > /dev/null 2>&1; then
+            decision_json=$(jq -n \
+                --arg ts "$timestamp" \
+                --arg sid "$PERSIST_SESSION_ID" \
+                --arg dec "$decision" \
+                --arg reason "$reason" \
+                --argjson eval "$PERSIST_EVALUATION_RESULT" \
+                '{
+                    timestamp: $ts,
+                    session_id: $sid,
+                    decision: $dec,
+                    reason: $reason,
+                    evaluation: $eval
+                }')
+        else
+            decision_json=$(jq -n \
+                --arg ts "$timestamp" \
+                --arg sid "$PERSIST_SESSION_ID" \
+                --arg dec "$decision" \
+                --arg reason "$reason" \
+                --arg eval_raw "$PERSIST_EVALUATION_RESULT" \
+                '{
+                    timestamp: $ts,
+                    session_id: $sid,
+                    decision: $dec,
+                    reason: $reason,
+                    evaluation_raw: $eval_raw
+                }')
+        fi
     else
         decision_json=$(jq -n \
             --arg ts "$timestamp" \
