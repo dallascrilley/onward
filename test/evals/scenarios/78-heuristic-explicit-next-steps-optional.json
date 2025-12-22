@@ -10,7 +10,7 @@
     },
     {
       "role": "assistant",
-      "content": "I'll implement data export in CSV and JSON formats. Should I also add PDF export? The CSV export will be completed first."
+      "content": "I'll implement data export in CSV and JSON formats. Should I also add PDF export?"
     }
   ]
 }
