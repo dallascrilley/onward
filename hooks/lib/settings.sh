@@ -1,7 +1,7 @@
 #!/bin/bash
 # settings.sh - Per-project settings reader
 #
-# Reads opt-in settings from .claude/double-shot-latte.local.md
+# Reads opt-in settings from .claude/redbull.local.md
 # Uses YAML frontmatter format. Fail-closed: missing/invalid = safe defaults.
 #
 # Exported variables after settings_load():
@@ -14,7 +14,7 @@ settings_get_path() {
         printf '%s\n' "$REDBULL_SETTINGS_PATH"
         return 0
     fi
-    printf '%s\n' ".claude/double-shot-latte.local.md"
+    printf '%s\n' ".claude/redbull.local.md"
 }
 
 # Set safe defaults
