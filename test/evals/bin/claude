@@ -1,7 +1,7 @@
 #!/bin/bash
 # Stub claude binary for fast eval testing
 # Uses STUB_EXPECTED_DECISION env var from harness to return correct decision
-# Returns v2 schema fields (confidence, decision_category, signals, risk_level)
+# Uses STUB_V2_FIELDS env var (JSON) to return scenario-specific v2 metadata
 
 # Read stdin (required for compatibility but content is ignored in stub mode)
 cat > /dev/null
@@ -12,26 +12,51 @@ case "$STUB_EXPECTED_DECISION" in
     true)
         SHOULD_CONTINUE="true"
         REASONING="Stub: Expected continuation (STUB_EXPECTED_DECISION=true)"
-        CONFIDENCE="0.92"
-        CATEGORY="explicit_continuation"
-        SIGNALS='["explicit_next_steps","incomplete_implementation"]'
-        RISK="low"
-        REASONS='["Stub mode: expected continuation","Test infrastructure validation"]'
+        # Default v2 values for continuation
+        DEFAULT_CONFIDENCE="0.92"
+        DEFAULT_CATEGORY="explicit_continuation"
+        DEFAULT_SIGNALS='["explicit_next_steps","incomplete_implementation"]'
+        DEFAULT_RISK="low"
         ;;
     false)
         SHOULD_CONTINUE="false"
         REASONING="Stub: Expected stop (STUB_EXPECTED_DECISION=false)"
-        CONFIDENCE="0.88"
-        CATEGORY="task_completion"
-        SIGNALS='["explicit_completion"]'
-        RISK="low"
-        REASONS='["Stub mode: expected stop","Test infrastructure validation"]'
+        # Default v2 values for stop
+        DEFAULT_CONFIDENCE="0.88"
+        DEFAULT_CATEGORY="task_completion"
+        DEFAULT_SIGNALS='["explicit_completion"]'
+        DEFAULT_RISK="low"
         ;;
     *)
         echo "ERROR: STUB_EXPECTED_DECISION must be 'true' or 'false', got '${STUB_EXPECTED_DECISION:-<unset>}'." >&2
         exit 2
         ;;
 esac
+
+# Override v2 fields from STUB_V2_FIELDS if provided (JSON object)
+# Supports: confidence, decision_category, risk_level, signals
+if [ -n "$STUB_V2_FIELDS" ]; then
+    # Extract values from JSON, using defaults if not specified
+    CONFIDENCE=$(echo "$STUB_V2_FIELDS" | jq -r '.confidence // empty')
+    CATEGORY=$(echo "$STUB_V2_FIELDS" | jq -r '.decision_category // empty')
+    RISK=$(echo "$STUB_V2_FIELDS" | jq -r '.risk_level // empty')
+    SIGNALS_RAW=$(echo "$STUB_V2_FIELDS" | jq -c '.signals // empty')
+
+    # Use extracted values or fall back to defaults
+    [ -z "$CONFIDENCE" ] && CONFIDENCE="$DEFAULT_CONFIDENCE"
+    [ -z "$CATEGORY" ] && CATEGORY="$DEFAULT_CATEGORY"
+    [ -z "$RISK" ] && RISK="$DEFAULT_RISK"
+    [ -z "$SIGNALS_RAW" ] || [ "$SIGNALS_RAW" = "null" ] && SIGNALS_RAW="$DEFAULT_SIGNALS"
+    SIGNALS="$SIGNALS_RAW"
+else
+    # No v2 overrides, use defaults
+    CONFIDENCE="$DEFAULT_CONFIDENCE"
+    CATEGORY="$DEFAULT_CATEGORY"
+    SIGNALS="$DEFAULT_SIGNALS"
+    RISK="$DEFAULT_RISK"
+fi
+
+REASONS='["Stub mode: test infrastructure validation"]'
 
 # Output in streaming JSON format that the hook expects
 # The hook parses: jq '.[] | select(.type == "result") | .structured_output'

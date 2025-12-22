@@ -31,6 +31,157 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# === v2 Field Validation Functions ===
+
+# Generate stub-compatible v2 fields from expected_v2_fields constraints
+# Returns JSON that the stub can use to produce valid v2 output
+generate_stub_v2_fields() {
+    local expected_v2="$1"
+    local expected_decision="$2"
+
+    # If no expected_v2_fields, return empty (stub uses defaults)
+    [ -z "$expected_v2" ] || [ "$expected_v2" = "null" ] && return 0
+
+    local confidence category risk signals
+
+    # Confidence: use midpoint of range, or min+0.05, or explicit value
+    local conf_min conf_max
+    conf_min=$(echo "$expected_v2" | jq -r '.confidence_min // empty')
+    conf_max=$(echo "$expected_v2" | jq -r '.confidence_max // empty')
+    if [ -n "$conf_min" ] && [ -n "$conf_max" ]; then
+        # Use midpoint
+        confidence=$(echo "scale=2; ($conf_min + $conf_max) / 2" | bc)
+    elif [ -n "$conf_min" ]; then
+        confidence=$(echo "scale=2; $conf_min + 0.05" | bc)
+    elif [ -n "$conf_max" ]; then
+        confidence=$(echo "scale=2; $conf_max - 0.05" | bc)
+    fi
+
+    # Category: use exact match or first of any-of list
+    category=$(echo "$expected_v2" | jq -r '.decision_category // empty')
+    if [ -z "$category" ]; then
+        category=$(echo "$expected_v2" | jq -r '.decision_category_any[0] // empty')
+    fi
+
+    # Risk: use exact match or first of any-of list
+    risk=$(echo "$expected_v2" | jq -r '.risk_level // empty')
+    if [ -z "$risk" ]; then
+        risk=$(echo "$expected_v2" | jq -r '.risk_level_any[0] // empty')
+    fi
+
+    # Signals: use signals_include or generate from signals_length_min
+    local signals_include
+    signals_include=$(echo "$expected_v2" | jq -c '.signals_include // empty')
+    if [ -n "$signals_include" ] && [ "$signals_include" != "null" ] && [ "$signals_include" != "" ]; then
+        signals="$signals_include"
+    fi
+
+    # Build the stub v2 fields JSON
+    local result="{}"
+    [ -n "$confidence" ] && result=$(echo "$result" | jq --argjson c "$confidence" '. + {confidence: $c}')
+    [ -n "$category" ] && result=$(echo "$result" | jq --arg c "$category" '. + {decision_category: $c}')
+    [ -n "$risk" ] && result=$(echo "$result" | jq --arg r "$risk" '. + {risk_level: $r}')
+    [ -n "$signals" ] && [ "$signals" != "null" ] && result=$(echo "$result" | jq --argjson s "$signals" '. + {signals: $s}')
+
+    echo "$result"
+}
+
+# Validate v2 fields from last_decision.json against expected_v2_fields
+# Returns: 0 if valid, 1 if invalid (with error message on stdout)
+validate_v2_fields() {
+    local decision_file="$1"
+    local expected_v2="$2"
+    local errors=""
+
+    # If no expected_v2_fields, skip validation
+    [ -z "$expected_v2" ] || [ "$expected_v2" = "null" ] && return 0
+
+    # Read evaluation from decision file
+    local evaluation
+    evaluation=$(jq -r '.evaluation // empty' "$decision_file" 2>/dev/null)
+    [ -z "$evaluation" ] && { echo "v2: no evaluation in decision file"; return 1; }
+
+    # Validate confidence range
+    local conf_min conf_max actual_conf
+    conf_min=$(echo "$expected_v2" | jq -r '.confidence_min // empty')
+    conf_max=$(echo "$expected_v2" | jq -r '.confidence_max // empty')
+    actual_conf=$(echo "$evaluation" | jq -r '.confidence // empty')
+
+    if [ -n "$conf_min" ] && [ -n "$actual_conf" ]; then
+        if [ "$(echo "$actual_conf < $conf_min" | bc)" -eq 1 ]; then
+            errors="$errors confidence $actual_conf < min $conf_min;"
+        fi
+    fi
+    if [ -n "$conf_max" ] && [ -n "$actual_conf" ]; then
+        if [ "$(echo "$actual_conf > $conf_max" | bc)" -eq 1 ]; then
+            errors="$errors confidence $actual_conf > max $conf_max;"
+        fi
+    fi
+
+    # Validate decision_category (exact or any-of)
+    local expected_cat expected_cat_any actual_cat
+    expected_cat=$(echo "$expected_v2" | jq -r '.decision_category // empty')
+    expected_cat_any=$(echo "$expected_v2" | jq -c '.decision_category_any // empty')
+    actual_cat=$(echo "$evaluation" | jq -r '.decision_category // empty')
+
+    if [ -n "$expected_cat" ] && [ -n "$actual_cat" ]; then
+        if [ "$actual_cat" != "$expected_cat" ]; then
+            errors="$errors category '$actual_cat' != '$expected_cat';"
+        fi
+    elif [ -n "$expected_cat_any" ] && [ "$expected_cat_any" != "null" ] && [ -n "$actual_cat" ]; then
+        if ! echo "$expected_cat_any" | jq -e --arg c "$actual_cat" 'index($c) != null' > /dev/null; then
+            errors="$errors category '$actual_cat' not in $expected_cat_any;"
+        fi
+    fi
+
+    # Validate risk_level (exact or any-of)
+    local expected_risk expected_risk_any actual_risk
+    expected_risk=$(echo "$expected_v2" | jq -r '.risk_level // empty')
+    expected_risk_any=$(echo "$expected_v2" | jq -c '.risk_level_any // empty')
+    actual_risk=$(echo "$evaluation" | jq -r '.risk_level // empty')
+
+    if [ -n "$expected_risk" ] && [ -n "$actual_risk" ]; then
+        if [ "$actual_risk" != "$expected_risk" ]; then
+            errors="$errors risk '$actual_risk' != '$expected_risk';"
+        fi
+    elif [ -n "$expected_risk_any" ] && [ "$expected_risk_any" != "null" ] && [ -n "$actual_risk" ]; then
+        if ! echo "$expected_risk_any" | jq -e --arg r "$actual_risk" 'index($r) != null' > /dev/null; then
+            errors="$errors risk '$actual_risk' not in $expected_risk_any;"
+        fi
+    fi
+
+    # Validate signals_include (all must be present)
+    local signals_include actual_signals
+    signals_include=$(echo "$expected_v2" | jq -c '.signals_include // empty')
+    actual_signals=$(echo "$evaluation" | jq -c '.signals // []')
+
+    if [ -n "$signals_include" ] && [ "$signals_include" != "null" ] && [ "$signals_include" != "" ]; then
+        for sig in $(echo "$signals_include" | jq -r '.[]'); do
+            if ! echo "$actual_signals" | jq -e --arg s "$sig" 'index($s) != null' > /dev/null; then
+                errors="$errors signal '$sig' missing from $actual_signals;"
+            fi
+        done
+    fi
+
+    # Validate signals_length_min
+    local signals_len_min actual_len
+    signals_len_min=$(echo "$expected_v2" | jq -r '.signals_length_min // empty')
+    if [ -n "$signals_len_min" ]; then
+        actual_len=$(echo "$actual_signals" | jq 'length')
+        if [ "$actual_len" -lt "$signals_len_min" ]; then
+            errors="$errors signals count $actual_len < min $signals_len_min;"
+        fi
+    fi
+
+    if [ -n "$errors" ]; then
+        echo "v2:$errors"
+        return 1
+    fi
+    return 0
+}
+
+# === End v2 Functions ===
+
 # Validate run configuration before using it
 validate_run_config() {
     # Ensure RUNS_PER_SCENARIO is numeric
