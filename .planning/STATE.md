@@ -18,19 +18,19 @@
 
 ## Current Position
 
-Phase: 3 of 5 (Signal Heuristics)
+Phase: 4 of 5 (Definition of Done)
 Plan: 1 of 1 complete
 Status: Phase complete
-Last activity: 2025-12-22 - Completed 03-01-PLAN.md
+Last activity: 2025-12-22 - Completed 04-01-PLAN.md
 
-Progress: ██████░░░░ 60%
+Progress: ████████░░ 80%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 7 min
-- Total execution time: 0.35 hours
+- Total plans completed: 4
+- Average duration: 9 min
+- Total execution time: 0.62 hours
 
 **By Phase:**
 
@@ -39,10 +39,11 @@ Progress: ██████░░░░ 60%
 | 1 | 1 | 4 min | 4 min |
 | 2 | 1 | 8 min | 8 min |
 | 3 | 1 | 9 min | 9 min |
+| 4 | 1 | 16 min | 16 min |
 
 **Recent Trend:**
-- Last 5 plans: 4m, 8m, 9m
-- Trend: Stable execution
+- Last 5 plans: 4m, 8m, 9m, 16m
+- Trend: Phase 4 was largest scope (DoD parsing + test runner changes)
 
 *Updated after each plan completion*
 
@@ -65,6 +66,10 @@ Progress: ██████░░░░ 60%
 | 3 | 4 heuristic signals implemented | asking_for_clarification, missing_information, explicit_next_steps, stated_todo_items |
 | 3 | Heuristic emits v2 metadata | Keeps explain.sh consistent; decision_category, signals, risk_level |
 | 3 | Three-tier path logging | permission → heuristic → judge for skip rate measurement |
+| 4 | Selective DoD parsing | Only affects judge tier (permission/heuristic prefilters bypass DoD) |
+| 4 | Layered prompt injection | DoD appends AFTER project rules in prompt |
+| 4 | Advisory vs strict language | "consider these" vs "HARD REQUIREMENTS" with "STRONGLY BIAS" |
+| 4 | Test runner DoD injection | REDBULL_SETTINGS_PATH environment variable for temp config |
 
 ### Deferred Issues
 
@@ -84,5 +89,5 @@ Drift notes: None
 ## Session Continuity
 
 Last session: 2025-12-22
-Stopped at: Phase 3 complete - Signal Heuristics shipped
+Stopped at: Phase 4 complete - Definition of Done shipped
 Resume file: None

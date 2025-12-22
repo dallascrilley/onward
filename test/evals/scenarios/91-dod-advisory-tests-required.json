@@ -1,0 +1,20 @@
+{
+  "name": "DoD advisory: Tests required but not run",
+  "description": "Feature implementation complete but tests not run. DoD says 'run tests'. Should continue to run tests.",
+  "expected_decision": true,
+  "expected_path": "judge",
+  "dod_config": {
+    "dod_enforcement": "advisory",
+    "definition_of_done": ["Always run tests before stopping"]
+  },
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Add a user registration feature with email validation"
+    },
+    {
+      "role": "assistant",
+      "content": "I've implemented the user registration feature with email validation.\n\nFiles created:\n- src/routes/auth/register.ts - Registration endpoint\n- src/lib/email-validator.ts - Email validation logic\n- src/models/user.ts - User model with registration fields\n\nThe implementation includes:\n- Email format validation using regex\n- Duplicate email check against database\n- Password hashing with bcrypt\n- JWT token generation on successful registration\n\nThe feature is complete and ready for use."
+    }
+  ]
+}

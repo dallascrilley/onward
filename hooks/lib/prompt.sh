@@ -3,6 +3,12 @@
 #
 # Allows per-project customization of judge behavior via rules files.
 # Rules are appended to the evaluation prompt to guide the judge.
+# Also handles Definition of Done (DoD) injection from settings.
+
+# Source settings.sh for DoD config access
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=settings.sh
+source "$SCRIPT_DIR/settings.sh" 2>/dev/null || true
 
 # Maximum rules file size (8KB) to prevent prompt bloat
 MAX_RULES_SIZE=8192
@@ -54,12 +60,51 @@ get_project_rules() {
     fi
 }
 
+# Build DoD section based on enforcement mode
+# Returns: DoD prompt section or empty string if no DoD rules
+_build_dod_section() {
+    # Check if DEFINITION_OF_DONE is set and non-empty
+    [ -z "$DEFINITION_OF_DONE" ] && return 0
+
+    local enforcement="${DOD_ENFORCEMENT:-advisory}"
+
+    if [ "$enforcement" = "strict" ]; then
+        cat <<EOF
+
+---
+
+DEFINITION OF DONE (HARD REQUIREMENTS):
+
+The user has defined these MANDATORY completion criteria. These are NOT suggestions:
+
+$DEFINITION_OF_DONE
+
+STRONGLY BIAS toward should_continue=true if ANY of these criteria appear unmet. The assistant should NOT stop until these are addressed or explicitly acknowledged as out of scope.
+EOF
+    else
+        # Default: advisory mode
+        cat <<EOF
+
+---
+
+DEFINITION OF DONE (consider these project completion criteria):
+
+The user has defined these completion requirements. Factor them into your decision:
+
+$DEFINITION_OF_DONE
+
+If work appears incomplete according to these criteria and the assistant hasn't addressed them, lean toward continuing.
+EOF
+    fi
+}
+
 # Build evaluation prompt with optional project rules
 # Usage: EVALUATION_PROMPT=$(build_evaluation_prompt_with_rules "$RECENT_CONTEXT")
 build_evaluation_prompt_with_rules() {
     local context="$1"
     local base_prompt
     local rules
+    local dod_section
 
     # Get base prompt from judge.sh
     base_prompt=$(build_evaluation_prompt "$context")
@@ -67,8 +112,25 @@ build_evaluation_prompt_with_rules() {
     # Get project rules
     rules=$(get_project_rules)
 
+    # Get DoD section (settings should already be loaded)
+    dod_section=$(_build_dod_section)
+
     if [ -n "$rules" ]; then
-        cat <<EOF
+        if [ -n "$dod_section" ]; then
+            # Both rules and DoD
+            cat <<EOF
+$base_prompt
+
+---
+
+ADDITIONAL PROJECT RULES (apply these to your decision):
+
+$rules
+$dod_section
+EOF
+        else
+            # Rules only, no DoD
+            cat <<EOF
 $base_prompt
 
 ---
@@ -77,7 +139,15 @@ ADDITIONAL PROJECT RULES (apply these to your decision):
 
 $rules
 EOF
+        fi
     else
-        echo "$base_prompt"
+        if [ -n "$dod_section" ]; then
+            # DoD only, no rules
+            echo "$base_prompt"
+            echo "$dod_section"
+        else
+            # Neither rules nor DoD
+            echo "$base_prompt"
+        fi
     fi
 }
