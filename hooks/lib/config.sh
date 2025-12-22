@@ -15,7 +15,13 @@ load_defaults() {
     DECISION_DIR="$CLAUDE_WORK_DIR"
     LAST_DECISION_FILE="$DECISION_DIR/last_decision.json"
     DECISION_LOG_FILE="$DECISION_DIR/decision_log.jsonl"
-    DECISION_LOG_MAX_LINES="${REDBULL_LOG_MAX_LINES:-100}"
+    # Validate DECISION_LOG_MAX_LINES is numeric (fail closed to default 100)
+    local _max_lines="${REDBULL_LOG_MAX_LINES:-100}"
+    if [[ "$_max_lines" =~ ^[0-9]+$ ]] && [ "$_max_lines" -gt 0 ]; then
+        DECISION_LOG_MAX_LINES="$_max_lines"
+    else
+        DECISION_LOG_MAX_LINES=100
+    fi
     DECISION_LOG_ENABLED="${REDBULL_LOG_DECISIONS:-false}"
 }
 

@@ -126,6 +126,7 @@ if [[ "$VERBOSE" == "true" ]]; then
 
     # Check if evaluation field exists
     EVAL_EXISTS=$(echo "$DECISION_JSON" | jq 'has("evaluation")')
+    EVAL_RAW_EXISTS=$(echo "$DECISION_JSON" | jq 'has("evaluation_raw")')
     if [[ "$EVAL_EXISTS" == "true" ]]; then
         SHOULD_CONTINUE=$(echo "$DECISION_JSON" | jq -r '.evaluation.should_continue // "N/A"')
         EVAL_REASONING=$(echo "$DECISION_JSON" | jq -r '.evaluation.reasoning // "N/A"')
@@ -135,8 +136,22 @@ if [[ "$VERBOSE" == "true" ]]; then
         echo ""
         echo "  Claude's reasoning:"
         echo "$EVAL_REASONING" | fold -s -w 66 | sed 's/^/    /'
+    elif [[ "$EVAL_RAW_EXISTS" == "true" ]]; then
+        # evaluation_raw exists when the evaluation response wasn't valid JSON
+        EVAL_RAW=$(echo "$DECISION_JSON" | jq -r '.evaluation_raw // "N/A"')
+        echo "Evaluation Details:"
+        echo "  (stored as raw text - evaluation response was not valid JSON)"
+        echo ""
+        echo "  Raw evaluation:"
+        echo "$EVAL_RAW" | fold -s -w 66 | sed 's/^/    /'
     else
+        # List available fields to help debug why evaluation is missing
+        AVAILABLE_FIELDS=$(echo "$DECISION_JSON" | jq -r 'keys | join(", ")')
         echo "Evaluation details not available (early exit decision)"
+        echo "  Available fields: $AVAILABLE_FIELDS"
+        echo ""
+        echo "  This usually means the hook exited before calling the Claude evaluator"
+        echo "  (e.g., throttle limit, missing transcript, disabled by settings)"
     fi
 
     echo ""

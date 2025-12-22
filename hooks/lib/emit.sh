@@ -39,7 +39,7 @@ persist_decision() {
                     decision: $dec,
                     reason: $reason,
                     evaluation: $eval
-                }')
+                }') || return 0
         else
             decision_json=$(jq -n \
                 --arg ts "$timestamp" \
@@ -53,7 +53,7 @@ persist_decision() {
                     decision: $dec,
                     reason: $reason,
                     evaluation_raw: $eval_raw
-                }')
+                }') || return 0
         fi
     else
         decision_json=$(jq -n \
@@ -66,7 +66,7 @@ persist_decision() {
                 session_id: $sid,
                 decision: $dec,
                 reason: $reason
-            }')
+            }') || return 0
     fi
 
     # Write last decision atomically
