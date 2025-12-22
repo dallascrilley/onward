@@ -81,7 +81,17 @@ When Claude tries to stop, a separate Claude instance evaluates the context and 
 - **Recursion prevention** - judge Claude can't trigger own hooks
 - **Graceful fallback** - allows stopping if evaluation fails
 - **Handoff snapshots** - writes `.claude/handoff.md` on approved stops with context for next session
+- **Failure triage** (opt-in) - writes `.claude/triage.md` with error analysis and fix suggestions
 - **Zero configuration** - works after installation
+
+## Opt-in Features
+
+Some features require explicit activation via environment variables:
+
+**Failure Triage** (`REDBULL_TRIAGE_ENABLED=true`)
+- Detects non-zero exit codes from tool executions
+- Writes `.claude/triage.md` with error analysis and suggested fixes
+- Provides heuristic suggestions for common errors (permission denied, module not found, etc.)
 
 ## Technical Details
 
