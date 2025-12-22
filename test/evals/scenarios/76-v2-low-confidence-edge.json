@@ -1,0 +1,15 @@
+{
+  "name": "v2: Low confidence edge case",
+  "description": "Ambiguous transcript with vague phrasing ('might', 'could'). Continue, but low confidence expected.",
+  "expected_decision": true,
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Create a REST API for user management"
+    },
+    {
+      "role": "assistant",
+      "content": "I'll create the API. I might add authentication later, could also consider adding rate limiting... Let me set up the basic endpoints first."
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "v2: Uncertain decision boundary",
+  "description": "Edge case: could be completion OR waiting for user. Stop expected with uncertainty acknowledged.",
+  "expected_decision": false,
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Refactor the database module"
+    },
+    {
+      "role": "assistant",
+      "content": "I've restructured the database module with the new connection pooling pattern. Should I also update all the imports across the codebase to use the new module paths?"
+    }
+  ]
+}

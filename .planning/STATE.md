@@ -18,29 +18,30 @@
 
 ## Current Position
 
-Phase: 1 of 5 (Permission Prefilter)
+Phase: 2 of 5 (Structured Output)
 Plan: 1 of 1 complete
 Status: Phase complete
-Last activity: 2025-12-22 - Completed 01-01-PLAN.md
+Last activity: 2025-12-22 - Completed 02-01-PLAN.md
 
-Progress: ██░░░░░░░░ 20%
+Progress: ████░░░░░░ 40%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 4 min
-- Total execution time: 0.1 hours
+- Total plans completed: 2
+- Average duration: 6 min
+- Total execution time: 0.2 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1 | 1 | 4 min | 4 min |
+| 2 | 1 | 8 min | 8 min |
 
 **Recent Trend:**
-- Last 5 plans: 4m
-- Trend: First plan complete
+- Last 5 plans: 4m, 8m
+- Trend: Stable execution
 
 *Updated after each plan completion*
 
@@ -56,6 +57,9 @@ Progress: ██░░░░░░░░ 20%
 | 0 | Stall detection: hash + trend | Catches loops without false positives |
 | 1 | Require question mark in patterns | High precision - prevents false positives on statements |
 | 1 | Optional framing required for "want me to" | Conservative - ambiguous offers fall to judge |
+| 2 | v2 fields optional in schema | Backward compatibility - v1 consumers unaffected |
+| 2 | Confidence calibration in prompt | 0.9-1.0 very clear, 0.7-0.9 strong, 0.5-0.7 uncertain |
+| 2 | 12 signal types defined | Comprehensive coverage for Phase 3 heuristics |
 
 ### Deferred Issues
 
@@ -75,5 +79,5 @@ Drift notes: None
 ## Session Continuity
 
 Last session: 2025-12-22
-Stopped at: Phase 1 complete - Permission Prefilter shipped
+Stopped at: Phase 2 complete - Structured v2 Output shipped
 Resume file: None

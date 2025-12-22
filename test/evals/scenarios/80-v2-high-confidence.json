@@ -1,0 +1,15 @@
+{
+  "name": "v2: High confidence continuation",
+  "description": "Clear explicit next steps stated. High confidence and low risk expected.",
+  "expected_decision": true,
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Implement the payment processing system"
+    },
+    {
+      "role": "assistant",
+      "content": "Created the Stripe integration with the checkout endpoint. Next I need to add the webhook handlers for payment confirmation and implement the refund functionality."
+    }
+  ]
+}

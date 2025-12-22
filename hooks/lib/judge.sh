@@ -5,9 +5,10 @@
 # has more autonomous work to do.
 
 # === Exported Prompt/Schema Definitions (used by both production and snapshot extraction) ===
-JUDGE_JSON_SCHEMA='{"type":"object","properties":{"should_continue":{"type":"boolean"},"reasoning":{"type":"string"}},"required":["should_continue","reasoning"]}'
+# v2 schema: extends v1 with confidence, decision_category, signals, risk_level
+JUDGE_JSON_SCHEMA='{"type":"object","properties":{"should_continue":{"type":"boolean","description":"Primary decision: should work continue?"},"reasoning":{"type":"string","description":"Full explanation of the decision"},"reasons":{"type":"array","items":{"type":"string"},"description":"Structured list of reasons for logging/analysis"},"confidence":{"type":"number","minimum":0,"maximum":1,"description":"Confidence in decision (0=uncertain, 1=very certain)"},"decision_category":{"type":"string","enum":["explicit_continuation","task_completion","waiting_for_user","blocker","incomplete_work","uncertain"],"description":"Why decision was made"},"signals":{"type":"array","items":{"type":"string","enum":["explicit_next_steps","explicit_completion","asking_for_approval","asking_for_decision","asking_for_clarification","offering_optional_work","incomplete_implementation","error_blocking_progress","missing_information","mid_task_question","stated_todo_items","offering_continuation_question"]},"description":"Detected signal types from transcript"},"risk_level":{"type":"string","enum":["low","medium","high"],"description":"Risk of continuing (high=edge case, low=safe)"},"next_action":{"type":"string","description":"What the assistant should do next (if should_continue=true)"},"constraints":{"type":"array","items":{"type":"string"},"description":"Any constraints or blockers affecting decision"}},"required":["should_continue","reasoning"]}'
 
-JUDGE_SYSTEM_PROMPT="You are a conversation state classifier. Your only job is to analyze conversation transcripts and determine if the assistant has more autonomous work to do. You output structured JSON. You do not write code or use tools."
+JUDGE_SYSTEM_PROMPT="You are a conversation state classifier. Your only job is to analyze conversation transcripts and determine if the assistant has more autonomous work to do. You output structured JSON with decision metadata including confidence scores, categorization, and detected signals. You do not write code or use tools."
 
 # Build evaluation prompt with conversation context
 # Usage: EVALUATION_PROMPT=$(build_evaluation_prompt "$RECENT_CONTEXT")
@@ -43,6 +44,43 @@ STOP (should_continue: false) in ALL other cases:
 KEY: If the assistant is WAITING for the user (whether after completing work OR asking a question), that means STOP. Waiting ≠ more autonomous work to do.
 
 Default to STOP when uncertain.
+
+ADDITIONALLY, provide these v2 metadata fields:
+
+confidence (0.0-1.0): How certain are you?
+- 0.9-1.0: Very clear signals (explicit "Next I'll..." or clear completion)
+- 0.7-0.9: Strong indicators but some ambiguity
+- 0.5-0.7: Uncertain, could go either way
+- <0.5: Very uncertain, defaulting to safe choice
+
+decision_category: Which best describes the situation?
+- explicit_continuation: Clear statement of next steps
+- task_completion: Work is done, no more to do
+- waiting_for_user: Needs user input/decision/approval
+- blocker: Cannot proceed (errors, missing info)
+- incomplete_work: Unfinished but no explicit next step
+- uncertain: Cannot confidently categorize
+
+signals: Which signals did you detect? (array, pick all that apply)
+- explicit_next_steps: "Next I'll...", "Now I need to..."
+- explicit_completion: "Done", "Complete", "Finished"
+- asking_for_approval: Waiting for user confirmation
+- asking_for_decision: "Which approach...?", "Should we...?"
+- asking_for_clarification: Needs more information
+- offering_optional_work: "Want me to also...?"
+- incomplete_implementation: Stated todos not yet done
+- error_blocking_progress: Errors preventing continuation
+- missing_information: Can't proceed without user input
+- mid_task_question: "Should I continue?" during active work
+- stated_todo_items: Pending items in a list
+- offering_continuation_question: Permission-seeking ("Ready to proceed?")
+
+risk_level: How risky is this decision?
+- low: Clear signals, high confidence
+- medium: Some ambiguity but reasonable choice
+- high: Edge case, could easily be wrong
+
+reasons: List the key factors that led to your decision (array of strings)
 EOF
 }
 

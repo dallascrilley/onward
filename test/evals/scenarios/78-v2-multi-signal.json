@@ -1,0 +1,15 @@
+{
+  "name": "v2: Multiple signals detected",
+  "description": "Transcript shows both explicit next steps AND incomplete implementation. Multiple signals expected.",
+  "expected_decision": true,
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Build user service with CRUD operations and authentication"
+    },
+    {
+      "role": "assistant",
+      "content": "Created the user model and basic CRUD endpoints. Now I need to add the authentication middleware. Also, tests are still missing for the update and delete operations."
+    }
+  ]
+}
