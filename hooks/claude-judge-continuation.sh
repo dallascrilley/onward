@@ -25,6 +25,7 @@ fi
 # Pseudocode:
 # - Derive a safe session key (hash preferred, sanitized fallback).
 # - Read throttle state; if missing/malformed/future timestamp, reset + clear.
+# - Increment count when a stop is blocked; reset to 0 when outside window.
 # - Write throttle state via temp file then atomic rename.
 # - Clear throttle state when stopping.
 
