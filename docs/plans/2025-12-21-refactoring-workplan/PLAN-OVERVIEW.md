@@ -29,13 +29,16 @@ Make refactoring safe and high-velocity by first restoring **trustworthy regress
 - ~~REF-003~~ ✓, ~~REF-002~~ ✓, ~~REF-011~~ ✓, ~~REF-006~~ ✓, ~~REF-010~~ ✓
 
 ### Stream C — Path + Docs Alignment (can run in parallel; coordinate with Stream A)
-- REF-007, REF-019
+- ~~REF-007~~ ✓, REF-019
 
 ### Stream D — Debuggability (parallel; strictly opt-in)
-- REF-020
+- ~~REF-020~~ ✓
 
 ### Stream E — Deterministic Local Testing (parallel; mostly harness-side)
-- REF-016
+- ~~REF-016~~ ✓
+
+### Uncategorized
+- ~~REF-013~~ ✓
 
 ## Dependency / Blockers Map
 
@@ -65,11 +68,7 @@ Recommended merge order after Stream A is green:
 
 | ID | Stream | Primary Files | Status | Merge Blockers | Proving Commands |
 |---|---|---|---|---|---|
-| REF-007 | C | `test/evals/run-evals.sh`, `hooks/hooks.json`, `RELENG.md`, `CLAUDE.md` | Pending | Coordinate with REF-001 | `./test/evals/run-evals.sh` |
-| REF-013 | A/B | `hooks/claude-judge-continuation.sh`, `test/` | Pending | REF-001 | `./test/evals/run-evals.sh` + snapshot script |
 | REF-019 | C | `RELENG.md`, `CLAUDE.md`, `README.md` | Pending | Coordinate with REF-001 | `rg \"scripts/\" -n` + `./test/evals/run-evals.sh` |
-| REF-020 | D | `hooks/claude-judge-continuation.sh` | Pending | REF-001 | `./test/evals/run-evals.sh` |
-| REF-016 | E | `test/evals/` (+ optional hook env seams) | Pending | REF-001 | mock-mode script + `./test/evals/run-evals.sh` |
 
 ## Deliverables (Files to be Created by This Plan)
 
@@ -105,12 +104,41 @@ Recommended merge order after Stream A is green:
 - Input validation boundaries tightened (REF-011)
 - Transcript extraction made robust with validation + eval coverage (REF-010)
 
+### Stream C — Path + Docs Alignment
+
+| ID | PR | Commit | Description | Merged |
+|---|---|---|---|---|
+| REF-007 | #9 | c916909 | REF-007: Centralize and parameterize script paths | 2025-12-22 |
+
+**Status:** Script paths centralized and parameterized for consistency across documentation and code.
+
+### Stream D — Debuggability
+
+| ID | PR | Commit | Description | Merged |
+|---|---|---|---|---|
+| REF-020 | #12 | ff1f6e1 | feat: Add optional structured debug logging | 2025-12-22 |
+
+**Status:** Structured debug logging added with opt-in mode for troubleshooting continuation decisions.
+
+### Stream E — Deterministic Local Testing
+
+| ID | PR | Commit | Description | Merged |
+|---|---|---|---|---|
+| REF-016 | #11 | 21602cb | REF-016: Add opt-in offline eval mode | 2025-12-22 |
+
+**Status:** Offline evaluation mode enabled for deterministic local testing without Claude API calls.
+
+### Uncategorized
+
+| ID | PR/Commit | Description | Merged |
+|---|---|---|---|
+| REF-013 | ada9ab2 | feat: Add snapshot tests for prompt and schema | 2025-12-22 |
+
+**Status:** Snapshot tests added for prompt and schema validation robustness.
+
 ### Remaining Items
 
 | Stream | Items | Status |
 |---|---|---|
-| C (Path + Docs) | REF-007, REF-019 | Pending coordination |
-| D (Debuggability) | REF-020 | Pending |
-| E (Deterministic) | REF-016 | Pending |
-| Uncategorized | REF-013 | Pending (eval coverage extension) |
+| C (Path + Docs) | REF-019 | Pending (docs sync) |
 
