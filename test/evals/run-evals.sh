@@ -26,6 +26,23 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Validate run configuration before using it
+validate_run_config() {
+    # Ensure RUNS_PER_SCENARIO is numeric
+    if ! [[ "$RUNS_PER_SCENARIO" =~ ^[0-9]+$ ]]; then
+        echo -e "${RED}ERROR: RUNS_PER_SCENARIO must be a positive integer, got '${RUNS_PER_SCENARIO}'.${NC}" >&2
+        exit 1
+    fi
+
+    # Ensure RUNS_PER_SCENARIO is at least 1
+    if [ "$RUNS_PER_SCENARIO" -lt 1 ]; then
+        echo -e "${RED}ERROR: RUNS_PER_SCENARIO must be at least 1, got '${RUNS_PER_SCENARIO}'.${NC}" >&2
+        exit 1
+    fi
+}
+
+validate_run_config
+
 # Validate hook script exists and is executable
 if [ ! -x "$HOOK_SCRIPT" ]; then
     echo -e "${RED}ERROR: Hook script not found or not executable: $HOOK_SCRIPT${NC}" >&2
@@ -111,9 +128,11 @@ validate_scenario() {
 # Preflight: Validate all scenarios before running
 echo "Validating scenario schemas..."
 validation_failed=false
+matched_scenarios=0
 
 for scenario_file in "$SCENARIOS_DIR"/$SCENARIO_GLOB; do
     [ ! -f "$scenario_file" ] && continue
+    matched_scenarios=$((matched_scenarios + 1))
 
     if ! validation_errors=$(validate_scenario "$scenario_file"); then
         echo -e "${RED}INVALID:${NC} $(basename "$scenario_file")"
@@ -121,6 +140,11 @@ for scenario_file in "$SCENARIOS_DIR"/$SCENARIO_GLOB; do
         validation_failed=true
     fi
 done
+
+if [ "$matched_scenarios" -eq 0 ]; then
+    echo -e "${RED}ERROR: No scenarios matched SCENARIO_GLOB='$SCENARIO_GLOB' in $SCENARIOS_DIR.${NC}" >&2
+    exit 1
+fi
 
 if [ "$validation_failed" = true ]; then
     echo ""
@@ -155,7 +179,7 @@ for scenario_file in "$SCENARIOS_DIR"/$SCENARIO_GLOB; do
     echo "   Expected: should_continue = $expected_decision"
     echo ""
 
-    # Run the scenario 5 times
+    # Run the scenario multiple times
     passes=0
     fails=0
 
@@ -173,8 +197,12 @@ for scenario_file in "$SCENARIOS_DIR"/$SCENARIO_GLOB; do
                 "session_id": "eval-test-session"
             }')
 
-        # Run the hook script (pass expected_decision for stub mode)
-        hook_output=$(echo "$hook_event" | STUB_EXPECTED_DECISION="$expected_decision" "$HOOK_SCRIPT" 2>&1)
+        # Run the hook script (pass expected_decision only in stub mode)
+        if [ "$EVAL_PROVIDER" = "stub" ]; then
+            hook_output=$(echo "$hook_event" | STUB_EXPECTED_DECISION="$expected_decision" "$HOOK_SCRIPT" 2>&1)
+        else
+            hook_output=$(echo "$hook_event" | "$HOOK_SCRIPT" 2>&1)
+        fi
         hook_exit_code=$?
         if [ $hook_exit_code -ne 0 ]; then
             echo -e "   ${RED}✗${NC} Run $run: HOOK EXECUTION FAILED (exit code: $hook_exit_code)"

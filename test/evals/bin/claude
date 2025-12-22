@@ -7,13 +7,20 @@ cat > /dev/null
 
 # Use the expected decision from the harness (passed via env var)
 # This makes the stub deterministic and always correct for testing harness infrastructure
-if [ "$STUB_EXPECTED_DECISION" = "true" ]; then
-    SHOULD_CONTINUE="true"
-    REASONING="Stub: Expected continuation (STUB_EXPECTED_DECISION=true)"
-else
-    SHOULD_CONTINUE="false"
-    REASONING="Stub: Expected stop (STUB_EXPECTED_DECISION=false)"
-fi
+case "$STUB_EXPECTED_DECISION" in
+    true)
+        SHOULD_CONTINUE="true"
+        REASONING="Stub: Expected continuation (STUB_EXPECTED_DECISION=true)"
+        ;;
+    false)
+        SHOULD_CONTINUE="false"
+        REASONING="Stub: Expected stop (STUB_EXPECTED_DECISION=false)"
+        ;;
+    *)
+        echo "ERROR: STUB_EXPECTED_DECISION must be 'true' or 'false', got '${STUB_EXPECTED_DECISION:-<unset>}'." >&2
+        exit 2
+        ;;
+esac
 
 # Output in streaming JSON format that the hook expects
 # The hook parses: jq '.[] | select(.type == "result") | .structured_output'
