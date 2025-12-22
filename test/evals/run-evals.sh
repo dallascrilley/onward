@@ -194,12 +194,16 @@ run_transcript_validation_cases() {
                 "session_id": "eval-test-session"
             }')
 
-        local hook_output
-        hook_output=$(echo "$hook_event" | STUB_EXPECTED_DECISION="$stub_expected" "$HOOK_SCRIPT" 2>&1)
+        local hook_output hook_stderr
+        local stderr_file="$TEMP_DIR/stderr-$$-$RANDOM"
+        hook_output=$(echo "$hook_event" | STUB_EXPECTED_DECISION="$stub_expected" "$HOOK_SCRIPT" 2>"$stderr_file")
         local hook_exit_code=$?
+        hook_stderr=$(cat "$stderr_file" 2>/dev/null)
+        rm -f "$stderr_file"
         if [ $hook_exit_code -ne 0 ]; then
             echo -e "   ${RED}✗${NC} HOOK EXECUTION FAILED (exit code: $hook_exit_code)"
             echo "      Output: $hook_output"
+            [ -n "$hook_stderr" ] && echo "      Stderr: $hook_stderr"
             total_failed=$((total_failed + 1))
             echo ""
             return
@@ -208,6 +212,7 @@ run_transcript_validation_cases() {
         if ! echo "$hook_output" | jq -e '.decision' >/dev/null 2>&1; then
             echo -e "   ${RED}✗${NC} INVALID HOOK RESPONSE (not valid JSON with decision)"
             echo "      Output: $hook_output"
+            [ -n "$hook_stderr" ] && echo "      Stderr: $hook_stderr"
             total_failed=$((total_failed + 1))
             echo ""
             return
@@ -298,15 +303,21 @@ for scenario_file in "$SCENARIOS_DIR"/$SCENARIO_GLOB; do
             }')
 
         # Run the hook script (pass expected_decision only in stub mode)
+        # Capture stdout for JSON parsing, stderr separately for diagnostics
+        hook_stderr=""
+        stderr_file="$TEMP_DIR/stderr-$total_scenarios-$run"
         if [ "$EVAL_PROVIDER" = "stub" ]; then
-            hook_output=$(echo "$hook_event" | STUB_EXPECTED_DECISION="$expected_decision" "$HOOK_SCRIPT" 2>&1)
+            hook_output=$(echo "$hook_event" | STUB_EXPECTED_DECISION="$expected_decision" "$HOOK_SCRIPT" 2>"$stderr_file")
         else
-            hook_output=$(echo "$hook_event" | "$HOOK_SCRIPT" 2>&1)
+            hook_output=$(echo "$hook_event" | "$HOOK_SCRIPT" 2>"$stderr_file")
         fi
         hook_exit_code=$?
+        hook_stderr=$(cat "$stderr_file" 2>/dev/null)
+        rm -f "$stderr_file"
         if [ $hook_exit_code -ne 0 ]; then
             echo -e "   ${RED}✗${NC} Run $run: HOOK EXECUTION FAILED (exit code: $hook_exit_code)"
             echo "      Output: $hook_output"
+            [ -n "$hook_stderr" ] && echo "      Stderr: $hook_stderr"
             fails=$((fails + 1))
             continue
         fi
@@ -315,6 +326,7 @@ for scenario_file in "$SCENARIOS_DIR"/$SCENARIO_GLOB; do
         if ! echo "$hook_output" | jq -e '.decision' >/dev/null 2>&1; then
             echo -e "   ${RED}✗${NC} Run $run: INVALID HOOK RESPONSE (not valid JSON with decision)"
             echo "      Output: $hook_output"
+            [ -n "$hook_stderr" ] && echo "      Stderr: $hook_stderr"
             fails=$((fails + 1))
             continue
         fi
