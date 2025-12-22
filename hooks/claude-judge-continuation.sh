@@ -12,6 +12,7 @@ source "$SCRIPT_DIR/lib/emit.sh"
 source "$SCRIPT_DIR/lib/throttle.sh"
 source "$SCRIPT_DIR/lib/transcript.sh"
 source "$SCRIPT_DIR/lib/judge.sh"
+source "$SCRIPT_DIR/lib/settings.sh"
 
 # Load default configuration
 load_defaults
@@ -21,6 +22,18 @@ if [ "$CLAUDE_HOOK_JUDGE_MODE" = "true" ]; then
     emit_decision "approve" "Running in judge mode, allowing stop"
     exit 0
 fi
+
+# Load per-project settings (fail-closed: defaults if missing/invalid)
+settings_load
+
+# Early exit: Plugin disabled by per-project settings
+if [ "$REDBULL_ENABLED" = "false" ]; then
+    emit_decision "approve" "Disabled by per-project settings"
+    exit 0
+fi
+
+# Apply aggressiveness to context lines
+settings_apply_aggressiveness
 
 # Read the hook event data
 EVENT=$(cat)
