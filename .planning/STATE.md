@@ -18,19 +18,19 @@
 
 ## Current Position
 
-Phase: 3 of 5 (Signal Heuristics)
-Plan: 1 of 1 complete
-Status: Phase complete
-Last activity: 2025-12-22 - Completed 03-01-PLAN.md
+Phase: 5 of 5 (Stall Detection)
+Plan: 2 of 2 complete
+Status: Phase complete - PROJECT COMPLETE
+Last activity: 2025-12-22 - Completed 05-02 (Stall detection integration & verification)
 
-Progress: ██████░░░░ 60%
+Progress: ██████████ 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 7 min
-- Total execution time: 0.35 hours
+- Total plans completed: 6
+- Average duration: 9 min
+- Total execution time: 0.87 hours
 
 **By Phase:**
 
@@ -39,10 +39,12 @@ Progress: ██████░░░░ 60%
 | 1 | 1 | 4 min | 4 min |
 | 2 | 1 | 8 min | 8 min |
 | 3 | 1 | 9 min | 9 min |
+| 4 | 1 | 10 min | 10 min |
+| 5 | 2 | 20 min | 10 min |
 
 **Recent Trend:**
-- Last 5 plans: 4m, 8m, 9m
-- Trend: Stable execution
+- Last 6 plans: 4m, 8m, 9m, 10m, 8m, 12m
+- Trend: Stable execution, project complete
 
 *Updated after each plan completion*
 
@@ -65,6 +67,16 @@ Progress: ██████░░░░ 60%
 | 3 | 4 heuristic signals implemented | asking_for_clarification, missing_information, explicit_next_steps, stated_todo_items |
 | 3 | Heuristic emits v2 metadata | Keeps explain.sh consistent; decision_category, signals, risk_level |
 | 3 | Three-tier path logging | permission → heuristic → judge for skip rate measurement |
+| 4 | YAML frontmatter config format | Simple `.claude/redbull.local.md` with frontmatter for DoD rules |
+| 4 | Advisory mode default | Lean toward continuing if DoD unmet, non-blocking |
+| 4 | Strict mode requires evidence | Only approve stop if DoD met WITH verification output |
+| 4 | DoD injected into judge prompt | `_build_dod_section()` adds mode-specific instructions |
+| 5 | SHA256 context fingerprinting | First 16 chars of hash for readability |
+| 5 | Three stall signals detected | context_unchanged, confidence_declining, same_category_repeated |
+| 5 | Risk score 0-100 point system | Context:30, Confidence:20, Category:20, Throttle:15/each |
+| 5 | HIGH risk threshold >70 | Force stop if judge confidence < 0.75 |
+| 5 | MODERATE risk threshold 40-70 | Raise confidence threshold to 0.65 |
+| 5 | Stall affects judge path only | Heuristic decisions bypass stall risk adjustments |
 
 ### Deferred Issues
 

@@ -170,7 +170,8 @@ if [ -n "$PERMISSION_PATTERN" ]; then
             # Update throttle tracking (same as judge continue)
             throttle_read "$THROTTLE_FILE"
             CONTINUE_COUNT=$((CONTINUE_COUNT + 1))
-            throttle_write "$THROTTLE_FILE" "$CONTINUE_COUNT" "$CURRENT_TIME"
+            CURRENT_CONTEXT_HASH=$(compute_context_hash "$RECENT_CONTEXT" 2>/dev/null) || true
+            throttle_write "$THROTTLE_FILE" "$CONTINUE_COUNT" "$CURRENT_TIME" "$CURRENT_CONTEXT_HASH"
 
             emit_decision "block" "Permission-seeking language detected ($PERMISSION_PATTERN): assistant asking to continue work"
             exit 0
@@ -205,10 +206,11 @@ if [ -n "$HEURISTIC_SIGNAL" ]; then
         PERSIST_EVALUATION_RESULT=$(build_heuristic_evaluation "$HEURISTIC_SIGNAL" "$HEURISTIC_STOP" "$HEURISTIC_DECISION")
 
         if [ "$HEURISTIC_DECISION" = "block" ]; then
-            # Update throttle tracking (same as judge continue)
+            # Update throttle tracking with context hash
             throttle_read "$THROTTLE_FILE"
             CONTINUE_COUNT=$((CONTINUE_COUNT + 1))
-            throttle_write "$THROTTLE_FILE" "$CONTINUE_COUNT" "$CURRENT_TIME"
+            CURRENT_CONTEXT_HASH=$(compute_context_hash "$RECENT_CONTEXT" 2>/dev/null) || true
+            throttle_write "$THROTTLE_FILE" "$CONTINUE_COUNT" "$CURRENT_TIME" "$CURRENT_CONTEXT_HASH"
 
             emit_decision "block" "Heuristic detected '$HEURISTIC_SIGNAL': work continues without judge"
             exit 0
@@ -218,6 +220,55 @@ if [ -n "$HEURISTIC_SIGNAL" ]; then
             exit 0
         fi
     fi
+fi
+
+# --- Stall Detection (Phase 5) ---
+# Compute context hash and detect stall signals before judge call
+CURRENT_CONTEXT_HASH=$(compute_context_hash "$RECENT_CONTEXT" 2>/dev/null) || true
+STALL_SIGNALS=""
+STALL_RISK=0
+CONTEXT_UNCHANGED=0
+CONFIDENCE_DECLINING=0
+CATEGORY_REPEAT_COUNT=0
+HAS_STALL_SIGNALS=false
+
+# Get throttle state for stall risk calculation
+throttle_read "$THROTTLE_FILE"
+
+if [ -n "$CURRENT_CONTEXT_HASH" ]; then
+    # Detect stall from decision log
+    DECISION_LOG_FILE="${DECISION_DIR:-$HOME/.claude/redbull}/decision_log.jsonl"
+    STALL_SIGNALS=$(detect_stall "$CURRENT_CONTEXT_HASH" "$DECISION_LOG_FILE" 2>/dev/null) || true
+
+    if [ -n "$STALL_SIGNALS" ] && [ "$STALL_SIGNALS" != "null" ]; then
+        HAS_STALL_SIGNALS=true
+        # Parse JSON signal flags
+        CONTEXT_UNCHANGED=$(echo "$STALL_SIGNALS" | jq -r '.context_unchanged // 0')
+        CONFIDENCE_DECLINING=$(echo "$STALL_SIGNALS" | jq -r '.confidence_declining // 0')
+        CATEGORY_REPEAT_COUNT=$(echo "$STALL_SIGNALS" | jq -r '.category_repeat_count // 0')
+
+        debug_log "stall_detected" \
+            --argjson signals "$STALL_SIGNALS" \
+            --arg context_hash "$CURRENT_CONTEXT_HASH"
+    fi
+
+    # Calculate stall risk score
+    STALL_RISK=$(calculate_stall_risk "$CONTEXT_UNCHANGED" "$CONFIDENCE_DECLINING" "$CATEGORY_REPEAT_COUNT" "$CONTINUE_COUNT")
+
+    debug_log "stall_risk" \
+        --argjson risk "$(json_num "$STALL_RISK" 0)" \
+        --argjson context_unchanged "$(json_num "$CONTEXT_UNCHANGED" 0)" \
+        --argjson confidence_declining "$(json_num "$CONFIDENCE_DECLINING" 0)" \
+        --argjson throttle_count "$(json_num "$CONTINUE_COUNT" 0)"
+fi
+
+# Set stall metadata for persistence
+if [ "$HAS_STALL_SIGNALS" = "true" ]; then
+    PERSIST_STALL_RISK="$STALL_RISK"
+    PERSIST_CONTEXT_HASH="$CURRENT_CONTEXT_HASH"
+else
+    PERSIST_STALL_RISK=""
+    PERSIST_CONTEXT_HASH=""
 fi
 
 # --- Call the judge ---
@@ -250,6 +301,7 @@ PERSIST_EVALUATION_RESULT="$EVALUATION_RESULT"
 # Parse the evaluation result (should be JSON)
 SHOULD_CONTINUE=$(echo "$EVALUATION_RESULT" | jq -r '.should_continue // false')
 REASONING=$(echo "$EVALUATION_RESULT" | jq -r '.reasoning // "No reasoning provided"')
+CONFIDENCE=$(echo "$EVALUATION_RESULT" | jq -r '.confidence // 0.5')
 
 # Log evaluation result (boolean only, not reasoning content)
 HAS_REASONING=$( [ -n "$REASONING" ] && [ "$REASONING" != "No reasoning provided" ] && echo true || echo false )
@@ -257,6 +309,38 @@ debug_log "evaluation_parsed" \
     --argjson should_continue "$(json_bool "$SHOULD_CONTINUE" false)" \
     --argjson has_reasoning "$(json_bool "$HAS_REASONING" false)" \
     --argjson dry_run "$(json_bool "$REDBULL_DRY_RUN" false)"
+
+# --- Stall Risk Threshold Adjustments (Phase 5) ---
+STALL_OVERRIDE=""
+if [ "$SHOULD_CONTINUE" = "true" ] && [ "$STALL_RISK" -gt 0 ]; then
+    # HIGH risk (>70): Force stop if confidence < 0.75
+    if [ "$STALL_RISK" -gt 70 ]; then
+        if command -v bc >/dev/null 2>&1; then
+            if [ "$(echo "$CONFIDENCE < 0.75" | bc -l 2>/dev/null)" = "1" ]; then
+                SHOULD_CONTINUE="false"
+                STALL_OVERRIDE="high_risk_override"
+                REASONING="Stall detected (risk=$STALL_RISK): forcing stop due to low confidence ($CONFIDENCE). Original: $REASONING"
+                debug_log "stall_override" \
+                    --arg type "high_risk" \
+                    --argjson stall_risk "$(json_num "$STALL_RISK" 0)" \
+                    --arg confidence "$CONFIDENCE"
+            fi
+        fi
+    # MODERATE risk (40-70): Stricter confidence threshold (0.65 instead of default)
+    elif [ "$STALL_RISK" -gt 40 ]; then
+        if command -v bc >/dev/null 2>&1; then
+            if [ "$(echo "$CONFIDENCE < 0.65" | bc -l 2>/dev/null)" = "1" ]; then
+                SHOULD_CONTINUE="false"
+                STALL_OVERRIDE="moderate_risk_override"
+                REASONING="Stall warning (risk=$STALL_RISK): stricter threshold applied, confidence ($CONFIDENCE) below 0.65. Original: $REASONING"
+                debug_log "stall_warning" \
+                    --arg type "moderate_risk" \
+                    --argjson stall_risk "$(json_num "$STALL_RISK" 0)" \
+                    --arg confidence "$CONFIDENCE"
+            fi
+        fi
+    fi
+fi
 
 # --- Dry-run mode: evaluate but always approve stop ---
 if [ "$REDBULL_DRY_RUN" = "true" ]; then
@@ -268,14 +352,15 @@ fi
 
 # Make the decision based on Claude's evaluation
 if [ "$SHOULD_CONTINUE" = "true" ]; then
-    # Update throttle tracking
+    # Update throttle tracking with context hash
     throttle_read "$THROTTLE_FILE"
     CONTINUE_COUNT=$((CONTINUE_COUNT + 1))
-    throttle_write "$THROTTLE_FILE" "$CONTINUE_COUNT" "$CURRENT_TIME"
+    throttle_write "$THROTTLE_FILE" "$CONTINUE_COUNT" "$CURRENT_TIME" "$CURRENT_CONTEXT_HASH"
 
     debug_log "decision" \
         --arg decision "block" \
-        --argjson throttle_count "$(json_num "$CONTINUE_COUNT" 0)"
+        --argjson throttle_count "$(json_num "$CONTINUE_COUNT" 0)" \
+        --argjson stall_risk "$(json_num "$STALL_RISK" 0)"
 
     # Block the stop - Claude thinks it can continue
     emit_decision "block" "Claude evaluator determined continuation is appropriate: $REASONING"

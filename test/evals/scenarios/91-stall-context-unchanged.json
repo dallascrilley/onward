@@ -1,0 +1,16 @@
+{
+  "name": "Stall: Vague progress claim without next steps",
+  "description": "Assistant claims to be working but provides no concrete next steps. Judge should evaluate this as uncertain - could stop to allow user intervention.",
+  "expected_decision": false,
+  "notes": "Without explicit next steps like 'Next I will...' or 'Let me now...', the assistant is in an uncertain state. Stall detection would amplify this uncertainty if decision history showed repeated similar states.",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Fix the authentication bug"
+    },
+    {
+      "role": "assistant",
+      "content": "I've been looking at the login function. The bug seems to be in the session handling somewhere. I'm not sure exactly where yet."
+    }
+  ]
+}

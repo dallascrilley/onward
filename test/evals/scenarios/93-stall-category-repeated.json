@@ -1,0 +1,16 @@
+{
+  "name": "Stall: Repeated incomplete work pattern",
+  "description": "Assistant describes ongoing incomplete work without clear progress. Pattern suggests potential loop.",
+  "expected_decision": false,
+  "notes": "When 'incomplete_work' category appears 3+ times in decision history, stall detection adds risk points. This transcript shows a similar uncertain state.",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Add the new API endpoint"
+    },
+    {
+      "role": "assistant",
+      "content": "I'm still working on the API endpoint. There are some challenges with the routing that I haven't fully resolved. The work is ongoing."
+    }
+  ]
+}
