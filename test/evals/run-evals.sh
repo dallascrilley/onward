@@ -15,7 +15,7 @@ TEMP_DIR="/tmp/hook-evals-$$"
 SNAPSHOT_TEST_SCRIPT="$SCRIPT_DIR/../test-snapshot.sh"
 
 # Configuration with environment variable overrides
-EVAL_OFFLINE=${EVAL_OFFLINE:-0}
+EVAL_OFFLINE=${EVAL_OFFLINE:-1}
 RUNS_PER_SCENARIO=${RUNS_PER_SCENARIO:-5}
 SCENARIO_GLOB=${SCENARIO_GLOB:-*.json}
 
