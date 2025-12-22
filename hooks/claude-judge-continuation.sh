@@ -86,7 +86,10 @@ fi
 
 # === Snapshot Extraction Mode ===
 # When SNAPSHOT_EXTRACT_MODE=true, output prompt/schema components for testing
-if [ "$SNAPSHOT_EXTRACT_MODE" = "true" ]; then
+# Pseudocode:
+# - If snapshot mode is enabled AND explicitly allowed, emit prompt/schema and exit
+# - If snapshot mode is enabled without explicit allow, warn and continue normal flow
+if [ "$SNAPSHOT_EXTRACT_MODE" = "true" ] && [ "$SNAPSHOT_EXTRACT_ALLOW" = "true" ]; then
     # Read hook event from stdin
     EVENT=$(cat)
     TRANSCRIPT_PATH=$(echo "$EVENT" | jq -r '.transcript_path // ""')
@@ -110,6 +113,8 @@ if [ "$SNAPSHOT_EXTRACT_MODE" = "true" ]; then
         --arg eval "$EVALUATION_PROMPT" \
         '{"json_schema": $schema, "system_prompt": $system, "evaluation_prompt": $eval}'
     exit 0
+elif [ "$SNAPSHOT_EXTRACT_MODE" = "true" ]; then
+    echo "SNAPSHOT_EXTRACT_MODE ignored unless SNAPSHOT_EXTRACT_ALLOW=true" >&2
 fi
 
 # === Throttle Helper Functions ===
@@ -292,8 +297,8 @@ if [ $? -ne 0 ]; then
     exit 0
 fi
 
-# Extract the structured output from the claude response (stream JSON format)
-EVALUATION_RESULT=$(echo "$CLAUDE_RESPONSE" | jq '.[] | select(.type == "result") | .structured_output // empty' 2>/dev/null)
+# Extract the structured output from the claude response (stream array or single object)
+EVALUATION_RESULT=$(echo "$CLAUDE_RESPONSE" | jq -c 'if type=="array" then .[] else . end | select(has("structured_output")) | .structured_output // empty' 2>/dev/null)
 
 # If no structured output, fall back to allowing stop
 if [ -z "$EVALUATION_RESULT" ] || [ "$EVALUATION_RESULT" = "null" ]; then

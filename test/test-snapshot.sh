@@ -51,7 +51,7 @@ set -e
 
 # Run hook in extraction mode
 set +e
-current_output=$(echo "$hook_event" | SNAPSHOT_EXTRACT_MODE=true "$HOOK_SCRIPT")
+current_output=$(echo "$hook_event" | SNAPSHOT_EXTRACT_MODE=true SNAPSHOT_EXTRACT_ALLOW=true "$HOOK_SCRIPT")
 exit_code=$?
 set -e
 

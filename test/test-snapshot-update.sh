@@ -28,7 +28,7 @@ mkdir -p "$SNAPSHOT_DIR"
 hook_event=$(jq -n --arg path "$FIXTURE_TRANSCRIPT" '{"transcript_path": $path, "session_id": "snapshot-update"}')
 
 # Extract current prompt/schema
-new_snapshot=$(echo "$hook_event" | SNAPSHOT_EXTRACT_MODE=true "$HOOK_SCRIPT" 2>/dev/null)
+new_snapshot=$(echo "$hook_event" | SNAPSHOT_EXTRACT_MODE=true SNAPSHOT_EXTRACT_ALLOW=true "$HOOK_SCRIPT" 2>/dev/null)
 
 if ! echo "$new_snapshot" | jq -e '.' > /dev/null 2>&1; then
     echo "ERROR: Hook extraction produced invalid JSON" >&2
