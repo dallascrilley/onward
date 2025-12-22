@@ -57,7 +57,12 @@ judge_should_continue() {
     mkdir -p "$claude_work_dir"
 
     local evaluation_prompt
-    evaluation_prompt=$(build_evaluation_prompt "$recent_context")
+    # Use rules-enhanced prompt if prompt.sh is sourced, otherwise base prompt
+    if type build_evaluation_prompt_with_rules &>/dev/null; then
+        evaluation_prompt=$(build_evaluation_prompt_with_rules "$recent_context")
+    else
+        evaluation_prompt=$(build_evaluation_prompt "$recent_context")
+    fi
 
     local claude_response
     claude_response=$(printf '%s' "$evaluation_prompt" | (cd "$claude_work_dir" && CLAUDE_HOOK_JUDGE_MODE=true claude --print --model "$claude_model" --output-format json --json-schema "$JUDGE_JSON_SCHEMA" --system-prompt "$JUDGE_SYSTEM_PROMPT" --disallowedTools '*') 2>/dev/null) || return 1

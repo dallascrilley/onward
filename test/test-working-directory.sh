@@ -1,12 +1,13 @@
 #!/bin/bash
 
-# Test that the hook script switches to ~/.claude/double-shot-latte before running claude
+# Test that the hook script switches to the state directory before running claude
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOOK_SCRIPT="$SCRIPT_DIR/../hooks/claude-judge-continuation.sh"
-TEST_DIR="$HOME/.claude/double-shot-latte"
+# Respect the same env var the hook uses for state directory
+TEST_DIR="${REDBULL_STATE_DIR:-$HOME/.claude/redbull}"
 
 # Colors for output
 RED='\033[0;31m'
