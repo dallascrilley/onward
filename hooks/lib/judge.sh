@@ -333,3 +333,111 @@ build_heuristic_evaluation() {
             reasons: ["heuristic:\($signal)"]
         }'
 }
+
+# === Stall Detection (Phase 5) ===
+# Detects non-progress loops via context fingerprinting and trend analysis
+# Runs after heuristic check, before judge call
+
+# Detect stall signals from decision history
+# Args: current_context_hash, decision_log_file
+# Returns: stall signal type (context_unchanged, confidence_declining, same_category_repeated) or returns 1 (no stall)
+detect_stall() {
+    local current_context_hash="$1"
+    local decision_log_file="$2"
+
+    # No log file or hash → no stall detection
+    [ -n "$current_context_hash" ] || return 1
+    [ -f "$decision_log_file" ] || return 1
+
+    # Read last 5 decisions
+    local last_decisions
+    last_decisions=$(tail -n 5 "$decision_log_file" 2>/dev/null)
+    [ -n "$last_decisions" ] || return 1
+
+    # Check 1: Context hash unchanged across entries
+    local prev_hashes
+    prev_hashes=$(echo "$last_decisions" | jq -r '.context_hash // empty' 2>/dev/null | grep -v '^$')
+    if [ -n "$prev_hashes" ]; then
+        local unchanged_count=0
+        while IFS= read -r hash; do
+            [ "$hash" = "$current_context_hash" ] && ((unchanged_count++))
+        done <<< "$prev_hashes"
+        # If 2+ previous decisions had same hash as current → stall
+        if [ "$unchanged_count" -ge 2 ]; then
+            echo "context_unchanged"
+            return 0
+        fi
+    fi
+
+    # Check 2: Confidence trend declining (3+ decisions with decreasing values)
+    local confidences
+    confidences=$(echo "$last_decisions" | jq -r '.evaluation.confidence // empty' 2>/dev/null | grep -v '^$' | tail -3)
+    if [ "$(echo "$confidences" | wc -l | tr -d ' ')" -ge 3 ]; then
+        local prev_conf=999
+        local declining=true
+        while IFS= read -r conf; do
+            # Compare using bc for float comparison
+            if command -v bc >/dev/null 2>&1; then
+                if [ "$(echo "$conf >= $prev_conf" | bc -l 2>/dev/null)" = "1" ]; then
+                    declining=false
+                    break
+                fi
+            else
+                # Fallback: skip decimal comparison without bc
+                declining=false
+                break
+            fi
+            prev_conf="$conf"
+        done <<< "$confidences"
+        if [ "$declining" = "true" ]; then
+            echo "confidence_declining"
+            return 0
+        fi
+    fi
+
+    # Check 3: Same decision_category repeated 3+ times
+    local categories
+    categories=$(echo "$last_decisions" | jq -r '.evaluation.decision_category // empty' 2>/dev/null | grep -v '^$')
+    if [ -n "$categories" ]; then
+        local most_common
+        most_common=$(echo "$categories" | sort | uniq -c | sort -rn | head -1)
+        local count
+        count=$(echo "$most_common" | awk '{print $1}')
+        if [ "${count:-0}" -ge 3 ]; then
+            echo "same_category_repeated"
+            return 0
+        fi
+    fi
+
+    # No stall signal detected
+    return 1
+}
+
+# Calculate stall risk score 0-100
+# Args: context_unchanged (0/1), confidence_declining (0/1), category_repeat_count, throttle_count
+# Returns: risk score 0-100
+calculate_stall_risk() {
+    local context_unchanged="${1:-0}"
+    local confidence_declining="${2:-0}"
+    local category_repeat_count="${3:-0}"
+    local throttle_count="${4:-0}"
+
+    local risk=0
+
+    # Context unchanged: 30 points
+    [ "$context_unchanged" = "1" ] && ((risk += 30))
+
+    # Confidence declining: 20 points
+    [ "$confidence_declining" = "1" ] && ((risk += 20))
+
+    # Category repeated 3+: 20 points
+    [ "$category_repeat_count" -ge 3 ] && ((risk += 20))
+
+    # Throttle count: 15 points per continuation
+    ((risk += throttle_count * 15))
+
+    # Cap at 100
+    [ "$risk" -gt 100 ] && risk=100
+
+    echo "$risk"
+}
