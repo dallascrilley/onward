@@ -143,26 +143,6 @@ detect_permission_language() {
         return 0
     fi
 
-    # EXPLICIT CHOICE REQUIRED patterns → APPROVE (stop, wait for user)
-    # "which...prefer", "choose", "which option"
-    if grep -Eqi "(which.*prefer|prefer.*which|choose|which option)" <<< "$last_assistant"; then
-        echo "explicit_choice_required"
-        return 0
-    fi
-
-    # "does this look/seem/sound good", "is this ok"
-    if grep -Eqi "does this.*(look|seem|sound).*(good|ok|correct|work)|is this.*(ok|correct)" <<< "$last_assistant"; then
-        echo "explicit_choice_required"
-        return 0
-    fi
-
-    # OPTIONAL WORK patterns → APPROVE (stop, wait for user)
-    # "want me to" or "should i also" with explicit optional framing
-    if grep -Eqi "(want me to|should i also).*(optional|nice.?to.?have|if you want)" <<< "$last_assistant"; then
-        echo "optional_offer"
-        return 0
-    fi
-
     # No pattern matched - fall through to judge
     return 1
 }
@@ -178,10 +158,6 @@ permission_language_decision() {
             # Work is ongoing, assistant asking if it should continue → BLOCK stop (continue)
             echo "block"
             ;;
-        explicit_choice_required|optional_offer)
-            # Waiting for user decision or optional offer → APPROVE stop
-            echo "approve"
-            ;;
         *)
             # Unknown pattern → fall back to judge
             echo ""
@@ -195,19 +171,17 @@ permission_language_decision() {
 # Returns signal type or empty string if no match
 #
 # Signal priority (first match wins):
-#   1. asking_for_clarification (stop)
-#   2. missing_information (stop)
-#   3. explicit_next_steps (continue)
-#   4. stated_todo_items (continue)
-#
-# Deferred signals (handled by Phase 1 or judge):
-#   - asking_for_approval: Phase 1 explicit_choice_required covers this
-#   - asking_for_decision: Phase 1 explicit_choice_required covers this
-#   - offering_optional_work: Phase 1 optional_offer (with framing) covers this
+#   1. asking_for_approval (stop)
+#   2. asking_for_decision (stop)
+#   3. offering_optional_work (stop)
+#   4. asking_for_clarification (stop)
+#   5. missing_information (stop)
+#   6. explicit_next_steps (continue)
+#   7. stated_todo_items (continue)
 
 # Detect heuristic signals from recent context
 # Args: recent_context (JSON array via stdin or $1)
-# Returns: signal type (asking_for_clarification, missing_information, explicit_next_steps, stated_todo_items) or empty
+# Returns: signal type (asking_for_approval, asking_for_decision, offering_optional_work, asking_for_clarification, missing_information, explicit_next_steps, stated_todo_items) or empty
 detect_heuristic_signal() {
     local recent_context="$1"
 
@@ -223,11 +197,37 @@ detect_heuristic_signal() {
     # No assistant message found
     [ -z "$last_assistant" ] && return 1
 
+    local has_explicit_next_steps=false
+    if grep -Eqi "(next i('ll| will| need| am going)|then i('ll| will)|now i('ll| will| need)|moving on to|let me (now |start |begin |continue ))" <<< "$last_assistant"; then
+        has_explicit_next_steps=true
+    fi
+
     # === STOP signals (approve stop without judge) ===
 
-    # asking_for_clarification - requires question mark
-    # Patterns: "clarify", "can you explain", "what should", "how should"
     if grep -q '\?' <<< "$last_assistant"; then
+        # asking_for_approval - requires question mark
+        # Patterns: "does this look/seem/sound/work", "is this ok/correct"
+        if grep -Eqi "(does (this|that).*(look|seem|sound|work|make sense)|is (this|that).*(ok|okay|correct|right|good))" <<< "$last_assistant"; then
+            echo "asking_for_approval"
+            return 0
+        fi
+
+        # asking_for_decision - requires question mark
+        # Patterns: "which", "choose", "prefer", "option ... or"
+        if grep -Eqi "(which|choose|prefer|option.*or)" <<< "$last_assistant"; then
+            echo "asking_for_decision"
+            return 0
+        fi
+
+        # offering_optional_work - requires question mark
+        # Patterns: "want me to", "should I also", "optional", "nice-to-have"
+        if [ "$has_explicit_next_steps" != "true" ] && grep -Eqi "(want me to|should i also|should i add|optional|nice[- ]?to[- ]?have)" <<< "$last_assistant"; then
+            echo "offering_optional_work"
+            return 0
+        fi
+
+        # asking_for_clarification - requires question mark
+        # Patterns: "clarify", "can you explain", "what should", "how should"
         if grep -Eqi "(can you (clarify|explain)|clarify.*\?|what (should|would you like)|how should)" <<< "$last_assistant"; then
             echo "asking_for_clarification"
             return 0
@@ -235,9 +235,8 @@ detect_heuristic_signal() {
     fi
 
     # missing_information - NO question mark required
-    # Patterns: credential/API key/password requests with tight proximity, "I can't proceed without"
-    # Note: avoid false positive on "password strength" or "token validation" mentions
-    if grep -Eqi "(need.{0,15}(credential|api.?key|the password|the token|the secret)|provide.{0,15}(credential|api.?key|password|token)|can'?t proceed without|where (is|are) the.{0,10}(credential|key|password|token|secret))" <<< "$last_assistant"; then
+    # Patterns: explicit need/provide/blocked phrasing with credentials/keys
+    if grep -Eqi "(\\<need\\>.{0,15}(credential|api.?key|the password|the token|the secret)|\\<provide\\>.{0,15}(credential|api.?key|password|token|secret)|can'?t proceed without.{0,10}(credential|key|password|token|secret)|\\<where\\>[[:space:]]+(is|are)[[:space:]]+the.{0,10}(credential|key|password|token|secret))" <<< "$last_assistant"; then
         echo "missing_information"
         return 0
     fi
@@ -247,7 +246,7 @@ detect_heuristic_signal() {
 
     # explicit_next_steps - clear statement of what comes next
     # Patterns: "Next I", "Then I'll", "Now I need to", "Moving on to", "Let me"
-    if grep -Eqi "(next i('ll| will| need| am going)|then i('ll| will)|now i('ll| will| need)|moving on to|let me (now |start |begin |continue ))" <<< "$last_assistant"; then
+    if [ "$has_explicit_next_steps" = "true" ]; then
         echo "explicit_next_steps"
         return 0
     fi
@@ -273,7 +272,7 @@ heuristic_should_stop() {
     local signal="$1"
 
     case "$signal" in
-        asking_for_clarification|missing_information)
+        asking_for_approval|asking_for_decision|offering_optional_work|asking_for_clarification|missing_information)
             # User input needed → STOP (approve)
             echo "true"
             ;;
@@ -302,9 +301,6 @@ build_heuristic_evaluation() {
     if [ "$should_stop" = "true" ]; then
         should_continue_bool=false
         case "$signal" in
-            asking_for_clarification)
-                decision_category="waiting_for_user"
-                ;;
             missing_information)
                 decision_category="blocker"
                 ;;
