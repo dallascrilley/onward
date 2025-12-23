@@ -463,10 +463,14 @@ for scenario_file in "$SCENARIOS_DIR"/$SCENARIO_GLOB; do
     description=$(jq -r '.description' "$scenario_file")
     expected_decision=$(jq -r '.expected_decision' "$scenario_file")
     expected_v2_fields=$(jq -c '.expected_v2_fields // null' "$scenario_file")
+    expected_path=$(jq -r '.expected_path // empty' "$scenario_file")
 
     echo "📝 Scenario: $scenario_name"
     echo "   Description: $description"
     echo "   Expected: should_continue = $expected_decision"
+    if [ -n "$expected_path" ]; then
+        echo "   Expected path: $expected_path"
+    fi
     echo ""
 
     # Run the scenario multiple times
@@ -501,9 +505,9 @@ for scenario_file in "$SCENARIOS_DIR"/$SCENARIO_GLOB; do
             if [ -n "$expected_v2_fields" ] && [ "$expected_v2_fields" != "null" ]; then
                 stub_v2_fields=$(generate_stub_v2_fields "$expected_v2_fields" "$expected_decision")
             fi
-            hook_output=$(echo "$hook_event" | STUB_EXPECTED_DECISION="$expected_decision" STUB_V2_FIELDS="$stub_v2_fields" "$HOOK_SCRIPT" 2>"$stderr_file")
+            hook_output=$(echo "$hook_event" | REDBULL_DEBUG=true STUB_EXPECTED_DECISION="$expected_decision" STUB_V2_FIELDS="$stub_v2_fields" "$HOOK_SCRIPT" 2>"$stderr_file")
         else
-            hook_output=$(echo "$hook_event" | "$HOOK_SCRIPT" 2>"$stderr_file")
+            hook_output=$(echo "$hook_event" | REDBULL_DEBUG=true "$HOOK_SCRIPT" 2>"$stderr_file")
         fi
         hook_exit_code=$?
         hook_stderr=$(cat "$stderr_file" 2>/dev/null)
@@ -535,8 +539,18 @@ for scenario_file in "$SCENARIOS_DIR"/$SCENARIO_GLOB; do
             hook_should_continue=true
         fi
 
+        # Check expected path (if provided)
+        path_ok=true
+        actual_path=""
+        if [ -n "$expected_path" ]; then
+            actual_path=$(printf '%s\n' "$hook_stderr" | jq -Rr 'fromjson? | select(.event=="prefilter_path") | .path' 2>/dev/null | tail -1)
+            if [ -z "$actual_path" ] || [ "$actual_path" != "$expected_path" ]; then
+                path_ok=false
+            fi
+        fi
+
         # Check if it matches expected
-        if [ "$hook_should_continue" = "$expected_decision" ]; then
+        if [ "$hook_should_continue" = "$expected_decision" ] && [ "$path_ok" = true ]; then
             # Decision matches, now validate v2 fields if expected
             v2_error=""
             if [ -n "$expected_v2_fields" ] && [ "$expected_v2_fields" != "null" ] && [ -f "$LAST_DECISION_FILE" ]; then
@@ -555,6 +569,9 @@ for scenario_file in "$SCENARIOS_DIR"/$SCENARIO_GLOB; do
             fails=$((fails + 1))
             echo -e "   ${RED}✗${NC} Run $run: FAIL (decision: $decision, expected should_continue: $expected_decision)"
             echo "      Reason: $reason"
+            if [ "$path_ok" = false ]; then
+                echo "      Expected path: $expected_path, actual: ${actual_path:-missing}"
+            fi
         fi
     done
 
