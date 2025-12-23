@@ -347,6 +347,16 @@ total_scenarios=0
 total_passed=0
 total_failed=0
 
+# === Metrics Collection ===
+# Track decision paths for performance analysis
+metric_prefilter_permission=0
+metric_prefilter_heuristic=0
+metric_judge_calls=0
+metric_early_exit=0  # throttle, transcript error, etc.
+metric_continue_decisions=0
+metric_stop_decisions=0
+start_time=$(date +%s)
+
 # Extra validation cases for transcript file handling (not representable via scenario JSON)
 run_transcript_validation_cases() {
     echo "🔍 Transcript Validation Cases"
@@ -539,11 +549,29 @@ for scenario_file in "$SCENARIOS_DIR"/$SCENARIO_GLOB; do
             hook_should_continue=true
         fi
 
-        # Check expected path (if provided)
+        # Check expected path (if provided) and track metrics
         path_ok=true
         actual_path=""
+        # Always extract actual path for metrics (even if not validating)
+        actual_path=$(printf '%s\n' "$hook_stderr" | jq -Rr 'fromjson? | select(.event=="prefilter_path") | .path' 2>/dev/null | tail -1)
+
+        # Track metrics by path (only on first run to avoid overcounting)
+        if [ "$run" -eq 1 ]; then
+            case "$actual_path" in
+                permission) metric_prefilter_permission=$((metric_prefilter_permission + 1)) ;;
+                heuristic) metric_prefilter_heuristic=$((metric_prefilter_heuristic + 1)) ;;
+                judge) metric_judge_calls=$((metric_judge_calls + 1)) ;;
+                *) metric_early_exit=$((metric_early_exit + 1)) ;;  # No path = early exit
+            esac
+            # Track decision type
+            if [ "$decision" = "block" ]; then
+                metric_continue_decisions=$((metric_continue_decisions + 1))
+            else
+                metric_stop_decisions=$((metric_stop_decisions + 1))
+            fi
+        fi
+
         if [ -n "$expected_path" ]; then
-            actual_path=$(printf '%s\n' "$hook_stderr" | jq -Rr 'fromjson? | select(.event=="prefilter_path") | .path' 2>/dev/null | tail -1)
             if [ -z "$actual_path" ] || [ "$actual_path" != "$expected_path" ]; then
                 path_ok=false
             fi
@@ -603,6 +631,85 @@ echo "================================="
 echo "Total scenarios: $total_scenarios"
 echo -e "Passed: ${GREEN}$total_passed${NC}"
 echo -e "Failed: ${RED}$total_failed${NC}"
+
+# === Metrics Summary ===
+end_time=$(date +%s)
+duration=$((end_time - start_time))
+accuracy=$(echo "scale=4; $total_passed / $total_scenarios" | bc 2>/dev/null || echo "0")
+
+echo ""
+echo "📈 Metrics"
+echo "---------"
+echo "Decision paths:"
+echo "  Permission prefilter: $metric_prefilter_permission"
+echo "  Heuristic prefilter:  $metric_prefilter_heuristic"
+echo "  Judge calls:          $metric_judge_calls"
+echo "  Early exit:           $metric_early_exit"
+echo ""
+echo "Decisions:"
+echo "  Continue (block):     $metric_continue_decisions"
+echo "  Stop (approve):       $metric_stop_decisions"
+echo ""
+echo "Duration: ${duration}s"
+
+# Calculate prefilter efficiency
+total_decisions=$((metric_prefilter_permission + metric_prefilter_heuristic + metric_judge_calls))
+if [ "$total_decisions" -gt 0 ]; then
+    prefilter_total=$((metric_prefilter_permission + metric_prefilter_heuristic))
+    prefilter_pct=$(echo "scale=1; $prefilter_total * 100 / $total_decisions" | bc 2>/dev/null || echo "0")
+    echo "Prefilter efficiency:   ${prefilter_pct}% of decisions avoided judge"
+fi
+
+# Emit metrics JSON to results directory (if writable)
+RESULTS_DIR="$SCRIPT_DIR/results"
+if [ -d "$RESULTS_DIR" ]; then
+    BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+    COMMIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+    METRICS_FILE="$RESULTS_DIR/metrics-${BRANCH_NAME}-$(date +%Y%m%d-%H%M%S).json"
+
+    jq -n \
+        --arg branch "$BRANCH_NAME" \
+        --arg commit "$COMMIT_SHA" \
+        --arg timestamp "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+        --argjson total_scenarios "$total_scenarios" \
+        --argjson passed "$total_passed" \
+        --argjson failed "$total_failed" \
+        --arg accuracy "$accuracy" \
+        --argjson duration "$duration" \
+        --argjson prefilter_permission "$metric_prefilter_permission" \
+        --argjson prefilter_heuristic "$metric_prefilter_heuristic" \
+        --argjson judge_calls "$metric_judge_calls" \
+        --argjson early_exit "$metric_early_exit" \
+        --argjson continue_decisions "$metric_continue_decisions" \
+        --argjson stop_decisions "$metric_stop_decisions" \
+        --arg offline_mode "$EVAL_OFFLINE" \
+        '{
+            branch: $branch,
+            commit: $commit,
+            timestamp: $timestamp,
+            scenarios: {
+                total: $total_scenarios,
+                passed: $passed,
+                failed: $failed,
+                accuracy: ($accuracy | tonumber)
+            },
+            paths: {
+                prefilter_permission: $prefilter_permission,
+                prefilter_heuristic: $prefilter_heuristic,
+                judge_calls: $judge_calls,
+                early_exit: $early_exit
+            },
+            decisions: {
+                continue: $continue_decisions,
+                stop: $stop_decisions
+            },
+            duration_seconds: $duration,
+            offline_mode: ($offline_mode == "1")
+        }' > "$METRICS_FILE"
+
+    echo ""
+    echo "📁 Metrics saved: $METRICS_FILE"
+fi
 
 if [ $total_failed -eq 0 ]; then
     echo ""

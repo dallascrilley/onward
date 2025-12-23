@@ -50,10 +50,11 @@ load_defaults() {
     DECISION_DIR="$CLAUDE_WORK_DIR"
     LAST_DECISION_FILE="$DECISION_DIR/last_decision.json"
     DECISION_LOG_FILE="$DECISION_DIR/decision_log.jsonl"
-    _apply_numeric_override DECISION_LOG_MAX_LINES 100 "${REDBULL_LOG_MAX_LINES:-100}" 1
-    case "${REDBULL_LOG_DECISIONS:-false}" in
-        true|TRUE|1) DECISION_LOG_ENABLED=true ;;
-        *) DECISION_LOG_ENABLED=false ;;
+    _apply_numeric_override DECISION_LOG_MAX_LINES 500 "${REDBULL_LOG_MAX_LINES:-500}" 1
+    # Decision logging enabled by default for observability
+    case "${REDBULL_LOG_DECISIONS:-true}" in
+        false|FALSE|0) DECISION_LOG_ENABLED=false ;;
+        *) DECISION_LOG_ENABLED=true ;;
     esac
 }
 
