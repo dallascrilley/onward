@@ -1,0 +1,20 @@
+{
+  "name": "Heuristic: Context variations (multiple assistant messages)",
+  "description": "Multiple assistant messages in the transcript; heuristic should use the most recent assistant message.",
+  "expected_decision": true,
+  "expected_path": "heuristic",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Deploy the application"
+    },
+    {
+      "role": "assistant",
+      "content": "I've reviewed the deployment checklist and confirmed the Docker image is built."
+    },
+    {
+      "role": "assistant",
+      "content": "Next I'll apply the Kubernetes manifests and verify the rollout status."
+    }
+  ]
+}

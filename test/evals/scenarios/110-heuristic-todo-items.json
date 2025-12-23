@@ -10,7 +10,7 @@
     },
     {
       "role": "assistant",
-      "content": "I've added add to cart and checkout functionality. I still need to implement coupon codes and shipping calculation before completing the feature."
+      "content": "Here's what's left:\n1. Coupon codes - pending\n2. Shipping calculation - need to implement\n3. Confirmation emails - upcoming\n\nNext I'll start on coupon codes."
     }
   ]
 }
