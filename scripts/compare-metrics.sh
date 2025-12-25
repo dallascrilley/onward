@@ -48,6 +48,10 @@ LATEST=0
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --latest)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: --latest requires a numeric argument" >&2
+                exit 1
+            fi
             LATEST="$2"
             shift 2
             ;;
