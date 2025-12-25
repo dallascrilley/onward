@@ -135,8 +135,8 @@ case "$FORMAT" in
 
         # Path breakdown
         echo "Decision paths:"
-        PERM=$(echo "$LOG_ENTRIES" | jq -r 'select(.reason | test("Permission-seeking|User choice"))' 2>/dev/null | wc -l | tr -d ' ')
-        HEUR=$(echo "$LOG_ENTRIES" | jq -r 'select(.reason | test("Heuristic"))' 2>/dev/null | wc -l | tr -d ' ')
+        PERM=$(echo "$LOG_ENTRIES" | jq -r 'select((.reason // "") | test("Permission-seeking|User choice"))' 2>/dev/null | wc -l | tr -d ' ')
+        HEUR=$(echo "$LOG_ENTRIES" | jq -r 'select((.reason // "") | test("Heuristic"))' 2>/dev/null | wc -l | tr -d ' ')
         JUDGE=$((TOTAL - PERM - HEUR))
         echo "  Permission prefilter: $PERM"
         echo "  Heuristic prefilter:  $HEUR"
