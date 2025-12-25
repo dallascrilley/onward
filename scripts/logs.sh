@@ -124,7 +124,11 @@ case "$FORMAT" in
         echo "=========================="
         echo ""
 
-        TOTAL=$(echo "$LOG_ENTRIES" | wc -l | tr -d ' ')
+        if [[ -z "$LOG_ENTRIES" ]]; then
+            TOTAL=0
+        else
+            TOTAL=$(printf '%s\n' "$LOG_ENTRIES" | wc -l | tr -d ' ')
+        fi
         BLOCKS=$(echo "$LOG_ENTRIES" | jq -r 'select(.decision=="block")' 2>/dev/null | wc -l | tr -d ' ')
         APPROVES=$((TOTAL - BLOCKS))
 
