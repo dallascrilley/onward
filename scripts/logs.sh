@@ -111,7 +111,7 @@ fi
 
 # Apply filter if provided
 if [[ -n "$FILTER" ]]; then
-    LOG_ENTRIES=$(echo "$LOG_ENTRIES" | jq -c "select($FILTER)" 2>/dev/null || echo "")
+    LOG_ENTRIES=$(echo "$LOG_ENTRIES" | jq -c 'select('"$FILTER"')' 2>/dev/null || echo "")
 fi
 
 # Output based on format
