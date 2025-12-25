@@ -1,0 +1,16 @@
+{
+  "name": "External wait: Server restarting",
+  "description": "Server needs to restart before continuing - but has explicit next step",
+  "expected_decision": true,
+  "notes": "If there's a clear next action after the wait, continue. The 'then I'll' makes this explicit.",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Update the database schema"
+    },
+    {
+      "role": "assistant",
+      "content": "Applied the schema migration. The server is restarting to pick up the changes - then I'll verify the new columns are accessible."
+    }
+  ]
+}

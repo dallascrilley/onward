@@ -1,0 +1,16 @@
+{
+  "name": "Transition: Almost done, one more step",
+  "description": "Assistant says 'almost done' with explicit remaining work - should continue",
+  "expected_decision": true,
+  "notes": "'Almost done' with stated remaining work is a continuation signal, not completion.",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Set up the CI pipeline"
+    },
+    {
+      "role": "assistant",
+      "content": "I've configured the build and test stages. Almost done - just need to add the deployment stage."
+    }
+  ]
+}

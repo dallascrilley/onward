@@ -1,0 +1,16 @@
+{
+  "name": "Uncertain completion: I think that's everything",
+  "description": "Assistant expresses uncertainty about completeness",
+  "expected_decision": false,
+  "notes": "'I think' signals uncertainty. Stop and let user verify nothing is missing.",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Update all the deprecated API calls"
+    },
+    {
+      "role": "assistant",
+      "content": "I've updated the fetch calls and the authentication methods. I think that's all the deprecated APIs in this codebase."
+    }
+  ]
+}

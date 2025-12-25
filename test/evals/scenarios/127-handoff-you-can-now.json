@@ -1,0 +1,16 @@
+{
+  "name": "Handoff: You can now do X",
+  "description": "Assistant hands off to user with 'you can now' - work complete",
+  "expected_decision": false,
+  "notes": "'You can now' signals handoff to user. Assistant's work is done.",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Set up the development environment"
+    },
+    {
+      "role": "assistant",
+      "content": "Installed all dependencies, configured the environment variables, and started the dev server. You can now access the app at http://localhost:3000"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "Uncertain completion: That should work",
+  "description": "Assistant uses uncertain language about completion - ambiguous",
+  "expected_decision": false,
+  "notes": "'Should work' without verification is uncertain. Better to stop and let user confirm.",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Fix the timezone bug"
+    },
+    {
+      "role": "assistant",
+      "content": "I've updated the date formatting to use UTC. That should fix the timezone issue."
+    }
+  ]
+}

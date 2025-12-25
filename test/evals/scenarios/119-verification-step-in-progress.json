@@ -1,0 +1,16 @@
+{
+  "name": "Verification: About to verify changes work",
+  "description": "Assistant stating they will verify - this is active work in progress",
+  "expected_decision": true,
+  "notes": "When assistant says 'Let me verify' or 'I'll check', they're about to take action. Continue.",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Fix the CORS configuration"
+    },
+    {
+      "role": "assistant",
+      "content": "I've updated the CORS settings in the middleware. Let me verify this works by testing a cross-origin request."
+    }
+  ]
+}
