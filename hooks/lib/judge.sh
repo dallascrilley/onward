@@ -171,17 +171,25 @@ permission_language_decision() {
 # Returns signal type or empty string if no match
 #
 # Signal priority (first match wins):
+#   STOP signals:
 #   1. asking_for_approval (stop)
 #   2. asking_for_decision (stop)
 #   3. offering_optional_work (stop)
 #   4. asking_for_clarification (stop)
 #   5. missing_information (stop)
-#   6. explicit_next_steps (continue)
-#   7. stated_todo_items (continue)
+#   6. explicit_completion (stop)
+#   7. uncertain_completion (stop)
+#   8. handoff_to_user (stop)
+#   CONTINUE signals:
+#   9. explicit_next_steps (continue)
+#   10. stated_todo_items (continue)
+#   11. error_recovery (continue)
+#   12. transition_phrase (continue)
+#   13. verification_intent (continue)
 
 # Detect heuristic signals from recent context
 # Args: recent_context (JSON array via stdin or $1)
-# Returns: signal type (asking_for_approval, asking_for_decision, offering_optional_work, asking_for_clarification, missing_information, explicit_next_steps, stated_todo_items) or empty
+# Returns: signal type or empty
 detect_heuristic_signal() {
     local recent_context="$1"
 
@@ -241,6 +249,27 @@ detect_heuristic_signal() {
         return 0
     fi
 
+    # explicit_completion - NO question mark required
+    # Patterns: clear completion statements at sentence boundaries
+    if grep -Eqi "(^|[.!] )(done|complete|finished|all set|ready to use|verified and working|is now (ready|live|deployed))[.!]" <<< "$last_assistant"; then
+        echo "explicit_completion"
+        return 0
+    fi
+
+    # uncertain_completion - NO question mark required
+    # Patterns: hedged completion language
+    if grep -Eqi "(that should (work|fix)|should be (fixed|working|good)|i think (that's (all|everything)|we're done))" <<< "$last_assistant"; then
+        echo "uncertain_completion"
+        return 0
+    fi
+
+    # handoff_to_user - NO question mark required
+    # Patterns: handing control back to user
+    if grep -Eqi "(you can now|ready for (your review|you to)|setup (is )?complete|is ready for)" <<< "$last_assistant"; then
+        echo "handoff_to_user"
+        return 0
+    fi
+
     # === CONTINUE signals (block stop without judge) ===
     # NO question mark required
 
@@ -261,6 +290,35 @@ detect_heuristic_signal() {
         fi
     fi
 
+    # error_recovery - errors/failures requiring fix (but not success statements)
+    # Patterns: explicit error indicators, excluding "no errors" success contexts
+    local has_error_pattern=false
+    local is_success_context=false
+    if grep -Eqi "(failed with|build failed|tests? (are )?failing|[0-9]+ (type )?errors?)" <<< "$last_assistant"; then
+        has_error_pattern=true
+    fi
+    if grep -Eqi "(no (type )?errors|passes with no|without (any )?errors|0 errors)" <<< "$last_assistant"; then
+        is_success_context=true
+    fi
+    if [ "$has_error_pattern" = "true" ] && [ "$is_success_context" = "false" ]; then
+        echo "error_recovery"
+        return 0
+    fi
+
+    # transition_phrase - almost done with explicit remaining work
+    # Patterns: transition words with stated remaining items
+    if grep -Eqi "(almost done.*(just|need|still)|one more (thing|step)|just need to)" <<< "$last_assistant"; then
+        echo "transition_phrase"
+        return 0
+    fi
+
+    # verification_intent - about to verify/check/test
+    # Patterns: stated intent to verify before completion
+    if grep -Eqi "(let me (verify|check|test|confirm)|i'll (verify|check|test)|going to (verify|test|check))" <<< "$last_assistant"; then
+        echo "verification_intent"
+        return 0
+    fi
+
     # No clear signal - fall through to judge
     return 1
 }
@@ -272,11 +330,11 @@ heuristic_should_stop() {
     local signal="$1"
 
     case "$signal" in
-        asking_for_approval|asking_for_decision|offering_optional_work|asking_for_clarification|missing_information)
-            # User input needed → STOP (approve)
+        asking_for_approval|asking_for_decision|offering_optional_work|asking_for_clarification|missing_information|explicit_completion|uncertain_completion|handoff_to_user)
+            # User input needed or work complete → STOP (approve)
             echo "true"
             ;;
-        explicit_next_steps|stated_todo_items)
+        explicit_next_steps|stated_todo_items|error_recovery|transition_phrase|verification_intent)
             # Work continues → CONTINUE (block)
             echo "false"
             ;;
@@ -304,13 +362,23 @@ build_heuristic_evaluation() {
             missing_information)
                 decision_category="blocker"
                 ;;
+            explicit_completion|uncertain_completion)
+                decision_category="task_completion"
+                ;;
             *)
                 decision_category="waiting_for_user"
                 ;;
         esac
     else
         should_continue_bool=true
-        decision_category="explicit_continuation"
+        case "$signal" in
+            error_recovery)
+                decision_category="blocker"
+                ;;
+            *)
+                decision_category="explicit_continuation"
+                ;;
+        esac
     fi
 
     # Build JSON with jq (use unquoted boolean for --argjson)
