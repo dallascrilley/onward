@@ -14,7 +14,7 @@
     },
     {
       "role": "assistant",
-      "content": "I've restructured the database module with the new connection pooling pattern. Should I also update all the imports across the codebase to use the new module paths?"
+      "content": "I've restructured the database module with the new connection pooling pattern. I'm unsure whether updating all imports to the new module paths is expected; let me know your preference."
     }
   ]
 }

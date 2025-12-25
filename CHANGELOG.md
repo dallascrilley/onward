@@ -67,10 +67,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Fixed plugin manifest validation error requiring hooks paths to start with "./"
-- Plugin now installs correctly from superpowers-marketplace
+- Plugin now installs correctly from dallas-plugin-marketplace
 
 ### Changed
-- Simplified installation to single command from superpowers-marketplace
+- Simplified installation to single command from dallas-plugin-marketplace
 - Cleaned up README using Strunk's writing principles for clarity and conciseness
 
 ## [1.0.0] - 2024-11-20

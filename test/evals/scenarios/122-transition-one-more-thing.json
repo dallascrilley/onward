@@ -1,0 +1,16 @@
+{
+  "name": "Transition: One more thing to do",
+  "description": "Assistant explicitly mentions one remaining item - should continue",
+  "expected_decision": true,
+  "notes": "'One more thing' or 'one last step' indicates clear remaining work.",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Configure the logging system"
+    },
+    {
+      "role": "assistant",
+      "content": "Set up the logger with Winston and configured the transports. One more thing - I need to add the log rotation configuration."
+    }
+  ]
+}

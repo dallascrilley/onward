@@ -1,0 +1,20 @@
+{
+  "name": "Workflow: Commit made, more commits needed",
+  "description": "Made one commit but task requires additional commits",
+  "expected_decision": true,
+  "notes": "When the task involves multiple commits and only one is done, continue. The 'Next' statement makes this explicit.",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Split the large utils file into separate modules"
+    },
+    {
+      "role": "assistant",
+      "content": "I'll break this into logical commits. First, I'll extract the date utilities."
+    },
+    {
+      "role": "assistant",
+      "content": "Committed: 'refactor: extract date utilities to date-utils.ts'. Next I need to extract the string utilities."
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "name": "Error recovery: Command failed, need to fix",
+  "description": "A bash command failed with an error - assistant should continue to address the failure",
+  "expected_decision": true,
+  "notes": "When a command fails, the assistant has clear next work: diagnose and fix the error. This is autonomous work, not a stopping point.",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Run the database migrations"
+    },
+    {
+      "role": "assistant",
+      "content": "I'll run the migrations now."
+    },
+    {
+      "role": "assistant",
+      "content": "The migration command failed with error: \"relation 'users' already exists\". I need to check the migration history and fix this conflict."
+    }
+  ]
+}

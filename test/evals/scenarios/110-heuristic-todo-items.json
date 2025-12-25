@@ -1,0 +1,16 @@
+{
+  "name": "Heuristic: Stated TODO items",
+  "description": "Assistant mentions TODO list or remaining work. Heuristic should detect and block stop.",
+  "expected_decision": true,
+  "expected_path": "heuristic",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Implement shopping cart feature"
+    },
+    {
+      "role": "assistant",
+      "content": "Here's what's left:\n1. Coupon codes - pending\n2. Shipping calculation - need to implement\n3. Confirmation emails - upcoming\n\nNext I'll start on coupon codes."
+    }
+  ]
+}

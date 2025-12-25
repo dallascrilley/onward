@@ -22,9 +22,9 @@ When Claude tries to stop, a separate Claude instance evaluates the context and 
 **Key principle:** If you can type "continue" and Claude knows what to do, the plugin continues automatically.
 
 ## Installation
-
+/plugin install redbull@dallas-plugin-marketplace
 ```bash
-/plugin install double-shot-latte@superpowers-marketplace
+/plugin install redbull@dallas-plugin-marketplace
 ```
 
 **Prerequisites:** Claude Code and `jq` command-line tool.

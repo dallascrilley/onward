@@ -1,0 +1,16 @@
+{
+  "name": "Heuristic: Edge case with no signal",
+  "description": "Assistant message with no clear signal. Should fall back to judge.",
+  "expected_decision": false,
+  "expected_path": "judge",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Write a function"
+    },
+    {
+      "role": "assistant",
+      "content": "I will write the function now."
+    }
+  ]
+}

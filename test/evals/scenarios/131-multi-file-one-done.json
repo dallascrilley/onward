@@ -1,0 +1,16 @@
+{
+  "name": "Multi-file: One file updated, more to go",
+  "description": "Task requires updating multiple files, only one done",
+  "expected_decision": true,
+  "notes": "When task involves multiple files and more are explicitly pending, continue.",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Rename userId to accountId across the codebase"
+    },
+    {
+      "role": "assistant",
+      "content": "Updated the type definitions in types/user.ts. Moving on to the API routes next."
+    }
+  ]
+}

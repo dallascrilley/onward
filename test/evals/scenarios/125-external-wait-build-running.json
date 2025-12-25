@@ -1,0 +1,16 @@
+{
+  "name": "External wait: Build still running",
+  "description": "Waiting for an external process - should stop and let user monitor",
+  "expected_decision": false,
+  "notes": "When waiting for external processes (CI, long builds), stop to avoid idle spinning.",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Deploy to staging"
+    },
+    {
+      "role": "assistant",
+      "content": "I've triggered the deployment pipeline. The build is running now - you can monitor progress at https://ci.example.com/builds/1234"
+    }
+  ]
+}

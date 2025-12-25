@@ -1,0 +1,16 @@
+{
+  "name": "Heuristic: Offering optional work",
+  "description": "Assistant offers additional work or asks permission to proceed. Heuristic should detect and approve stop without judge.",
+  "expected_decision": false,
+  "expected_path": "heuristic",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Create a user registration system"
+    },
+    {
+      "role": "assistant",
+      "content": "I've implemented user registration with email validation and password hashing. Should I also add social login options? Want me to include profile picture upload functionality?"
+    }
+  ]
+}

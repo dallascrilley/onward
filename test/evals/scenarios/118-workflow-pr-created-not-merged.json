@@ -1,0 +1,20 @@
+{
+  "name": "Workflow: PR created, awaiting user action",
+  "description": "PR has been created - assistant is done, needs user to review/merge",
+  "expected_decision": false,
+  "notes": "Creating a PR is typically the end of the assistant's autonomous work. User needs to review and merge.",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Create a PR for the authentication feature"
+    },
+    {
+      "role": "assistant",
+      "content": "I'll create the PR with a summary of all the changes."
+    },
+    {
+      "role": "assistant",
+      "content": "Created PR #42: 'feat: add OAuth2 authentication'. The PR is ready for review at https://github.com/org/repo/pull/42"
+    }
+  ]
+}
