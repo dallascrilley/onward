@@ -363,7 +363,7 @@ build_heuristic_evaluation() {
             missing_information)
                 decision_category="blocker"
                 ;;
-            explicit_completion|uncertain_completion)
+            explicit_completion|uncertain_completion|handoff_to_user)
                 decision_category="task_completion"
                 ;;
             *)
@@ -372,14 +372,8 @@ build_heuristic_evaluation() {
         esac
     else
         should_continue_bool=true
-        case "$signal" in
-            error_recovery)
-                decision_category="blocker"
-                ;;
-            *)
-                decision_category="explicit_continuation"
-                ;;
-        esac
+        # All CONTINUE signals indicate explicit continuation intent
+        decision_category="explicit_continuation"
     fi
 
     # Build JSON with jq (use unquoted boolean for --argjson)
