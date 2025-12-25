@@ -82,7 +82,7 @@ if [[ "$LATEST" -gt 0 ]]; then
         echo "Run ./test/evals/run-evals.sh to generate metrics."
         exit 1
     fi
-    mapfile -t FILES < <(ls -t "$RESULTS_DIR"/metrics-*.json 2>/dev/null | head -n "$LATEST")
+    mapfile -t FILES < <(ls -t "$RESULTS_DIR"/metrics-*.json 2>/dev/null | head -n "$LATEST" || true)
 fi
 
 if [[ ${#FILES[@]} -eq 0 ]]; then
