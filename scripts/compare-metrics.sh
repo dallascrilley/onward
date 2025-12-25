@@ -124,7 +124,12 @@ print_row() {
     printf "%-25s" "$label"
     for f in "${FILES[@]}"; do
         val=$(jq -r "$jq_path // \"?\"" "$f" 2>/dev/null)
-        printf "%-18s" "$(printf "$format" "$val")"
+        # Handle placeholder "?" for numeric formats to avoid printf errors
+        if [[ "$val" == "?" ]] || [[ -z "$val" ]]; then
+            printf "%-18s" "?"
+        else
+            printf "%-18s" "$(printf "$format" "$val" 2>/dev/null || echo "$val")"
+        fi
     done
     printf "\n"
 }
