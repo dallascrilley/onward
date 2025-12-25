@@ -1,0 +1,16 @@
+{
+  "name": "Heuristic: Explicit next steps with optional",
+  "description": "Assistant states next steps but offers optional additional work. Heuristic should detect continue signal and block stop.",
+  "expected_decision": true,
+  "expected_path": "heuristic",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Implement data export feature"
+    },
+    {
+      "role": "assistant",
+      "content": "Next I'll implement data export in CSV and JSON formats. Should I also add PDF export?"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "Handoff: Setup complete for user",
+  "description": "Assistant completed setup for user to continue - should stop",
+  "expected_decision": false,
+  "notes": "When assistant sets things up for user's next action, that's a handoff point.",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Prepare the demo for the client meeting"
+    },
+    {
+      "role": "assistant",
+      "content": "I've set up the demo environment:\n- Sample data loaded\n- Test accounts created (demo@example.com / demo123)\n- Feature flags enabled for new features\n\nThe demo is ready for your presentation."
+    }
+  ]
+}

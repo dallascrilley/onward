@@ -1,0 +1,16 @@
+{
+  "name": "Heuristic: Approval without question mark",
+  "description": "Assistant states approval language without question mark. Should fall back to judge.",
+  "expected_decision": false,
+  "expected_path": "judge",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Create API integration"
+    },
+    {
+      "role": "assistant",
+      "content": "This approach looks good for the API integration. Ready to proceed with implementation."
+    }
+  ]
+}

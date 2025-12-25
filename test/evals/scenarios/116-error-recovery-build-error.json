@@ -1,0 +1,20 @@
+{
+  "name": "Error recovery: Build error to fix",
+  "description": "Build failed with type errors - assistant should continue to fix them",
+  "expected_decision": true,
+  "notes": "Build errors are blocking issues that require immediate attention. Clear autonomous work.",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Update the API response types"
+    },
+    {
+      "role": "assistant",
+      "content": "I've updated the response types in api/types.ts. Let me verify the build."
+    },
+    {
+      "role": "assistant",
+      "content": "Build failed with 2 type errors:\n- Property 'metadata' is missing in type 'ApiResponse'\n- Type 'string' is not assignable to type 'number'"
+    }
+  ]
+}

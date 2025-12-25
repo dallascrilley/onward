@@ -1,0 +1,16 @@
+{
+  "name": "Multi-file: All files updated successfully",
+  "description": "Multi-file task completed across all locations",
+  "expected_decision": false,
+  "notes": "When all files are updated and confirmed, work is complete.",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Rename userId to accountId across the codebase"
+    },
+    {
+      "role": "assistant",
+      "content": "Renamed userId to accountId in:\n- types/user.ts\n- api/routes/users.ts\n- api/routes/auth.ts\n- lib/session.ts\n\nAll 47 occurrences updated. Build passes with no type errors."
+    }
+  ]
+}

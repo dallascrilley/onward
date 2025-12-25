@@ -133,7 +133,7 @@ Throttle files: `/tmp/.claude-continue-throttle-<session_id>`
 
 This plugin uses semantic versioning. Version must be updated in:
 1. `.claude-plugin/plugin.json` - `"version"` field
-2. `../superpowers-marketplace/.claude-plugin/marketplace.json` - plugin entry
+2. `../dallas-plugin-marketplace/.claude-plugin/marketplace.json` - plugin entry
 3. `CHANGELOG.md` - new version section
 
 See `RELENG.md` for full release process.

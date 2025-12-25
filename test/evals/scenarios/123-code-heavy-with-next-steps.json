@@ -1,0 +1,16 @@
+{
+  "name": "Code-heavy: Large code block with stated next steps",
+  "description": "Message is mostly code but ends with clear next steps - should continue",
+  "expected_decision": true,
+  "notes": "Even when message is code-heavy, explicit next steps signal continuation.",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Implement the rate limiter middleware"
+    },
+    {
+      "role": "assistant",
+      "content": "Here's the rate limiter:\n\n```typescript\nexport const rateLimiter = (options: RateLimitOptions) => {\n  const store = new Map<string, TokenBucket>();\n  return async (req: Request, res: Response, next: NextFunction) => {\n    const key = getClientKey(req);\n    const bucket = store.get(key) ?? createBucket(options);\n    if (bucket.consume()) {\n      store.set(key, bucket);\n      next();\n    } else {\n      res.status(429).json({ error: 'Rate limit exceeded' });\n    }\n  };\n};\n```\n\nNow I need to add the Redis backend for distributed rate limiting."
+    }
+  ]
+}

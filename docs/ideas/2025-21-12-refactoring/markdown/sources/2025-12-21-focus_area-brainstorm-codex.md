@@ -212,7 +212,7 @@ Tie-breakers applied: lower risk → lower expertise → higher impact.
   - `-ge 3`
   - `tail -n 10`
   - `--model haiku`
-  - `~/.claude/double-shot-latte`
+  - `~/.claude/redbull`
 - expected_improvements:
   - Easier reviews and safer future tuning.
   - Clearer policy intent; fewer accidental inconsistencies.

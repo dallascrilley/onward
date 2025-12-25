@@ -27,7 +27,7 @@ echo '{"session_id":"test"}' | \
 - Keep hook scripts deterministic, fast, and with quoted variables.
 
 ## Plugin Settings (Optional)
-- Per‑project config belongs in `.claude/double-shot-latte.local.md` with YAML frontmatter + markdown body.
+- Per‑project config belongs in `.claude/redbull.local.md` with YAML frontmatter + markdown body.
 - Do not commit local settings; add `.claude/*.local.md` to `.gitignore` if you introduce settings.
 - Hooks can quick‑exit if the settings file is missing or `enabled: false`.
 

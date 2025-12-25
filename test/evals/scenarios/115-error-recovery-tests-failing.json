@@ -1,0 +1,20 @@
+{
+  "name": "Error recovery: Tests failing, need fixes",
+  "description": "Test run shows failures - assistant should continue to fix them",
+  "expected_decision": true,
+  "notes": "Failing tests represent clear next work. The assistant should diagnose and fix the failures, not stop.",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Add validation to the user form"
+    },
+    {
+      "role": "assistant",
+      "content": "I've added the validation logic. Let me run the tests to verify."
+    },
+    {
+      "role": "assistant",
+      "content": "Tests are failing - 3 assertions failed in user-form.test.ts. The email validation regex isn't matching the expected format."
+    }
+  ]
+}

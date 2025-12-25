@@ -1,0 +1,16 @@
+{
+  "name": "Dependency: Package installed, configuration needed",
+  "description": "Installed a package but it needs configuration - should continue",
+  "expected_decision": true,
+  "notes": "Installing a package is often step 1. Configuration step is explicit next work.",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Add Sentry error tracking"
+    },
+    {
+      "role": "assistant",
+      "content": "Installed @sentry/node and @sentry/tracing. Now I need to configure the DSN and add the initialization code to the app entry point."
+    }
+  ]
+}

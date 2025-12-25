@@ -1,0 +1,20 @@
+{
+  "name": "Verification: Completed and confirmed working",
+  "description": "Assistant verified the changes work - task is complete",
+  "expected_decision": false,
+  "notes": "Successful verification is a completion signal. No more autonomous work needed.",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Fix the CORS configuration"
+    },
+    {
+      "role": "assistant",
+      "content": "I've updated the CORS settings. Let me verify."
+    },
+    {
+      "role": "assistant",
+      "content": "Verified - the cross-origin request now succeeds with the proper headers. CORS is configured correctly."
+    }
+  ]
+}

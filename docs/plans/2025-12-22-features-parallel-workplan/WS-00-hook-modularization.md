@@ -34,7 +34,7 @@ This repo’s features concentrate changes into `hooks/claude-judge-continuation
 - Hook registration: `hooks/hooks.json` (Stop only)
 - Tests:
   - `./test/evals/run-evals.sh` (scenario suite)
-  - `./test/test-working-directory.sh` (asserts `claude` runs in `~/.claude/double-shot-latte`)
+  - `./test/test-working-directory.sh` (asserts `claude` runs in `~/.claude/redbull`)
 
 ## Files
 
@@ -140,7 +140,7 @@ load_defaults() {
   THROTTLE_WINDOW_SECONDS=300
   TRANSCRIPT_CONTEXT_LINES=10
   CLAUDE_MODEL="haiku"
-  CLAUDE_WORK_DIR="$HOME/.claude/double-shot-latte"
+  CLAUDE_WORK_DIR="$HOME/.claude/redbull"
 }
 ```
 
@@ -236,7 +236,7 @@ source "$SCRIPT_DIR/lib/judge.sh"
 
 **Step 2:** Run working directory test:
 - Run: `./test/test-working-directory.sh`
-- Expected: PASS, claude ran in `~/.claude/double-shot-latte`.
+- Expected: PASS, claude ran in `~/.claude/redbull`.
 
 ## Immediate Next Task
 

@@ -24,7 +24,7 @@ This plugin follows semantic versioning (semver):
 
 Update version in these files:
 1. `.claude-plugin/plugin.json` - `"version"` field
-2. `../superpowers-marketplace/.claude-plugin/marketplace.json` - plugin entry version
+2. `../dallas-plugin-marketplace/.claude-plugin/marketplace.json` - plugin entry version
 3. `CHANGELOG.md` - add new version section
 
 ### 3. Changelog Update
@@ -61,9 +61,9 @@ git push origin vX.X.X
 
 ```bash
 # Commit marketplace changes
-cd ../superpowers-marketplace
+cd ../dallas-plugin-marketplace
 git add .
-git commit -m "chore: Update double-shot-latte to vX.X.X"
+git commit -m "chore: Update redbull to vX.X.X"
 git push
 ```
 
@@ -72,8 +72,8 @@ git push
 ### Local Testing
 ```bash
 # Test plugin installation
-/plugin marketplace add /path/to/double-shot-latte
-/plugin install double-shot-latte@double-shot-latte-dev
+/plugin marketplace add /path/to/redbull
+/plugin install redbull@redbull-dev
 
 # Test hook functionality
 # Try multi-step task and verify continuation behavior
@@ -103,7 +103,7 @@ Before release, verify these files are correct:
 - [ ] `CHANGELOG.md` - updated with new version
 
 ### External Files
-- [ ] `../superpowers-marketplace/.claude-plugin/marketplace.json` - version matches
+- [ ] `../dallas-plugin-marketplace/.claude-plugin/marketplace.json` - version matches
 
 ## Emergency Fixes
 

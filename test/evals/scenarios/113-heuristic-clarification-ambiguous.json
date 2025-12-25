@@ -1,0 +1,16 @@
+{
+  "name": "Heuristic: Ambiguous clarification",
+  "description": "Clarification request without question mark. Should fall back to judge.",
+  "expected_decision": false,
+  "expected_path": "judge",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Fix authentication bug"
+    },
+    {
+      "role": "assistant",
+      "content": "Let me clarify the authentication flow before proceeding with the fix"
+    }
+  ]
+}

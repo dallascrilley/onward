@@ -1,0 +1,16 @@
+{
+  "name": "Code-heavy: Implementation complete, ready to use",
+  "description": "Large code block followed by completion statement - should stop",
+  "expected_decision": false,
+  "notes": "Code followed by 'ready to use' or similar completion signal means work is done.",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Write a debounce utility function"
+    },
+    {
+      "role": "assistant",
+      "content": "Here's the debounce utility:\n\n```typescript\nexport function debounce<T extends (...args: any[]) => any>(\n  fn: T,\n  delay: number\n): (...args: Parameters<T>) => void {\n  let timeoutId: ReturnType<typeof setTimeout>;\n  return (...args: Parameters<T>) => {\n    clearTimeout(timeoutId);\n    timeoutId = setTimeout(() => fn(...args), delay);\n  };\n}\n```\n\nThe function is ready to use. Import it from `utils/debounce.ts`."
+    }
+  ]
+}

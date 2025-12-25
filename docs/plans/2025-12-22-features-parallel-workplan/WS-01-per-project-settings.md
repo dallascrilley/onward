@@ -6,7 +6,7 @@
 
 **Goal:** Add an opt-in, per-project settings file that can disable the plugin and control aggressiveness without changing default behavior when the file is missing.
 
-**Architecture:** Implement a strict, fail-closed YAML-frontmatter parser for `.claude/double-shot-latte.local.md` that only accepts a small allowlist of keys. The Stop hook reads settings once and applies safe defaults if anything is missing/invalid.
+**Architecture:** Implement a strict, fail-closed YAML-frontmatter parser for `.claude/redbull.local.md` that only accepts a small allowlist of keys. The Stop hook reads settings once and applies safe defaults if anything is missing/invalid.
 
 **Tech Stack:** Bash + `jq`.
 
@@ -24,7 +24,7 @@ Right now, the Stop hook behavior is effectively hard-coded. Your task is to add
 
 ## Settings Contract (Minimal, Safe, Fail-Closed)
 
-**Path (default):** `.claude/double-shot-latte.local.md` in the project root (hook CWD).  
+**Path (default):** `.claude/redbull.local.md` in the project root (hook CWD).  
 **Override (testing/automation):** `REDBULL_SETTINGS_PATH=/absolute/path/to/file.md`
 
 **Format:** Markdown file with YAML frontmatter:
@@ -69,7 +69,7 @@ settings_get_path() {
     printf '%s\n' "$REDBULL_SETTINGS_PATH"
     return 0
   fi
-  printf '%s\n' ".claude/double-shot-latte.local.md"
+  printf '%s\n' ".claude/redbull.local.md"
 }
 ```
 
@@ -157,7 +157,7 @@ source "$SCRIPT_DIR/lib/settings.sh"
 ### Task 3: Add a deterministic settings test
 
 **Step 1:** Create `test/test-settings.sh` that:
-- Creates a temp directory with a `.claude/double-shot-latte.local.md`
+- Creates a temp directory with a `.claude/redbull.local.md`
 - Creates a temp transcript file
 - Executes the hook with `REDBULL_SETTINGS_PATH` pointing to the temp settings file
 - Asserts `decision` is `approve` when `enabled: false`
@@ -175,7 +175,7 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
 mkdir -p "$tmp/.claude"
-cat > "$tmp/.claude/double-shot-latte.local.md" <<'EOF'
+cat > "$tmp/.claude/redbull.local.md" <<'EOF'
 ---
 enabled: false
 aggressiveness: high
@@ -188,7 +188,7 @@ cat > "$tmp/transcript.ndjson" <<'EOF'
 EOF
 
 event="$(jq -n --arg transcript_path "$tmp/transcript.ndjson" '{stop_hook_active:false, transcript_path:$transcript_path, session_id:"settings-test"}')"
-out="$(echo "$event" | REDBULL_SETTINGS_PATH="$tmp/.claude/double-shot-latte.local.md" "$HOOK")"
+out="$(echo "$event" | REDBULL_SETTINGS_PATH="$tmp/.claude/redbull.local.md" "$HOOK")"
 
 decision="$(printf '%s' "$out" | jq -r '.decision')"
 [ "$decision" = "approve" ]

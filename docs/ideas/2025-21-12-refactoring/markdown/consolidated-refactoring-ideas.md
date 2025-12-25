@@ -25,7 +25,7 @@ Hook-based Claude Code plugin that intercepts **Stop** events and decides whethe
 - **Magic numbers and hard-coded policy**: throttle window, max continuations, transcript line count, model name, and workdir are inline
 - **Inconsistent JSON output construction**: some paths `echo` raw JSON strings, others use `jq -n` (risk of escaping issues)
 - **Docs drift**: `RELENG.md` and test harness reference `scripts/` while implementation lives under `hooks/`
-- **Plugin name inconsistency**: `double-shot-latte` in plugin.json vs `redbull` in repo name
+- **Plugin name inconsistency**: `redbull` in plugin.json vs `redbull` in repo name
 
 ### Constraints
 - **No external behavior changes**: hook I/O contract must remain `stdin JSON` → `stdout JSON` with same decision semantics
@@ -65,7 +65,7 @@ Hook-based Claude Code plugin that intercepts **Stop** events and decides whethe
 | 15 | REF-015 | Add performance timing instrumentation | Conventional | perf | infra | 3 | 2 | 2 | 1 | 2 | **1.50** | `date +%s`, `HOOK_START_TIME`, `HOOK_DURATION`, optional metrics |
 | 16 | REF-016 | Add deterministic offline eval mode | Creative | testing | build | 4 | 3 | 3 | 2 | 4 | **1.33** | `PATH` mocking, `CLAUDE_HOOK_JUDGE_MODE`, `claude --print`, mock claude runner |
 | 17 | REF-017 | Introduce shared bash helper library for hooks/tests | Conventional | refactor | infra | 4 | 3 | 3 | 2 | 2 | **1.33** | `hooks/lib/common.sh`, `SCRIPT_DIR=`, `cleanup()`, `trap cleanup`, JSON helpers |
-| 18 | REF-018 | Fix plugin name inconsistency | Conventional | DX | design | 2 | 1 | 1 | 1 | 1 | **2.00** | `plugin.json`, `double-shot-latte`, `redbull`, `CLAUDE_WORK_DIR` |
+| 18 | REF-018 | Fix plugin name inconsistency | Conventional | DX | design | 2 | 1 | 1 | 1 | 1 | **2.00** | `plugin.json`, `redbull`, `redbull`, `CLAUDE_WORK_DIR` |
 | 19 | REF-019 | Align docs naming + paths | Conventional | DX | design | 2 | 2 | 1 | 1 | 1 | **1.00** | `RELENG.md`, `scripts/`, plugin naming, remove `scripts/` references |
 | 20 | REF-020 | Add optional structured debug logging | Conventional | DX | infra | 2 | 2 | 2 | 1 | 2 | **1.00** | `DEBUG`, timestamps, stderr, structured fields, guarded by env var |
 | 21 | REF-021 | Moonshot: modularize into `hooks/lib/*.sh` modules | Moonshot | refactor | infra | 5 | 4 | 4 | 3 | 5 | **1.25** | `source`, `hooks/lib`, `emit_*`, `throttle_*`, `json.sh`, `prompt.sh`, `claude-runner.sh` |
@@ -157,7 +157,7 @@ Hook-based Claude Code plugin that intercepts **Stop** events and decides whethe
   - `-ge 3`
   - `tail -n 10`
   - `--model haiku`
-  - `~/.claude/double-shot-latte`
+  - `~/.claude/redbull`
 - **expected_improvements**:
   - Easier reviews and safer future tuning.
   - Clearer policy intent; fewer accidental inconsistencies.
@@ -833,8 +833,8 @@ Hook-based Claude Code plugin that intercepts **Stop** events and decides whethe
 - **owner_role**: `Fullstack`
 - **parent_epic_id**: `EPIC-03`
 - **current_state_assessment**:
-  - Plugin name mismatch: `double-shot-latte` in plugin.json vs `redbull` in repo name.
-  - `CLAUDE_WORK_DIR` references `double-shot-latte`.
+  - Plugin name mismatch: `redbull` in plugin.json vs `redbull` in repo name.
+  - `CLAUDE_WORK_DIR` references `redbull`.
 - **scores**:
   - impact: 2
   - effort: 1
@@ -846,7 +846,7 @@ Hook-based Claude Code plugin that intercepts **Stop** events and decides whethe
   - `.claude-plugin/plugin.json`, `hooks/claude-judge-continuation.sh` (workdir reference).
 - **implementation_steps**:
   1. Update `plugin.json` name field to `redbull`.
-  2. Update `CLAUDE_WORK_DIR` reference from `double-shot-latte` to `redbull`.
+  2. Update `CLAUDE_WORK_DIR` reference from `redbull` to `redbull`.
   3. Verify plugin still installs and works correctly.
   4. Update any docs that reference the old name.
 - **acceptance_criteria**:
@@ -860,7 +860,7 @@ Hook-based Claude Code plugin that intercepts **Stop** events and decides whethe
   - Commands: `/plugin install redbull@redbull-dev` (verify install works)
 - **targets_search_tokens**:
   - `plugin.json`
-  - `double-shot-latte`
+  - `redbull`
   - `redbull`
   - `CLAUDE_WORK_DIR`
 - **expected_improvements**:
@@ -1072,5 +1072,5 @@ Hook-based Claude Code plugin that intercepts **Stop** events and decides whethe
 - Performance refactoring (REF-005, REF-009, REF-015) may have minimal real-world impact given infrequent hook invocation, but improves code quality
 - Moonshot REF-021 requires careful design to maintain single-file simplicity users expect from bash plugins
 - No CI system is present in this repo; "DX/CI" ideas assume either local scripts or a future CI workflow (without changing runtime behavior)
-- Plugin name fix (REF-018) has low risk since `double-shot-latte` is internal reference only, but improves consistency
+- Plugin name fix (REF-018) has low risk since `redbull` is internal reference only, but improves consistency
 

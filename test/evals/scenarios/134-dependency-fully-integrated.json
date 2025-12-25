@@ -1,0 +1,16 @@
+{
+  "name": "Dependency: Package installed and configured",
+  "description": "Package fully integrated and working - should stop",
+  "expected_decision": false,
+  "notes": "When package is installed AND configured AND verified, work is complete.",
+  "transcript": [
+    {
+      "role": "user",
+      "content": "Add Sentry error tracking"
+    },
+    {
+      "role": "assistant",
+      "content": "Sentry is now fully integrated:\n- Installed @sentry/node\n- Configured with DSN from environment\n- Added initialization to app.ts\n- Tested with a sample error - it appeared in the Sentry dashboard"
+    }
+  ]
+}
