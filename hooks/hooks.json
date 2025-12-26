@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" claude-judge-continuation.sh"
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/claude-judge-continuation.sh"
           }
         ]
       }
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" claude-guardrail-pretooluse.sh"
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/claude-guardrail-pretooluse.sh"
           }
         ]
       }
@@ -25,7 +25,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" claude-sessionstart-brief.sh"
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/claude-sessionstart-brief.sh"
           }
         ]
       }
@@ -35,7 +35,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" claude-posttooluse-triage.sh"
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/claude-posttooluse-triage.sh"
           }
         ]
       }

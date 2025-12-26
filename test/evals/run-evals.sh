@@ -665,7 +665,8 @@ RESULTS_DIR="$SCRIPT_DIR/results"
 if [ -d "$RESULTS_DIR" ]; then
     BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
     COMMIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-    METRICS_FILE="$RESULTS_DIR/metrics-${BRANCH_NAME}-$(date +%Y%m%d-%H%M%S).json"
+    SAFE_BRANCH_NAME="${BRANCH_NAME//\//-}"
+    METRICS_FILE="$RESULTS_DIR/metrics-${SAFE_BRANCH_NAME}-$(date +%Y%m%d-%H%M%S).json"
 
     jq -n \
         --arg branch "$BRANCH_NAME" \
