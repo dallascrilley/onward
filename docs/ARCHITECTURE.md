@@ -21,7 +21,7 @@ hooks/
     emit.sh        the single stdout writer, plus decision persistence
     debug.sh       structured stderr tracing
 scripts/           explain, logs, bench, compare-metrics, test
-test/              hook tests, snapshots, and 130 eval scenarios
+test/              hook tests, snapshots, and 124 eval scenarios
 ```
 
 ## The Stop decision path
@@ -79,4 +79,4 @@ Throttle state lives in per-session files under the same directory. Definition-o
 
 ## Testing
 
-`test/evals/run-evals.sh` replays each scenario through the real hook with `test/evals/bin/claude` on `PATH` as a stubbed judge. Each scenario asserts both the decision and the path that produced it, so a change that gets the right answer through the wrong rung still fails. `test/snapshots/` pins the judge prompt and JSON schema, so prompt edits have to be deliberate.
+`test/evals/run-evals.sh` replays each scenario through the real hook with `test/evals/bin/claude` on `PATH` as a stubbed judge. Every scenario asserts the decision, and path-sensitive scenarios additionally declare `expected_path`, so a change that gets those answers through the wrong rung still fails. `test/snapshots/` pins the judge prompt and JSON schema, so prompt edits have to be deliberate.

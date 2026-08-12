@@ -12,7 +12,7 @@ cd onward
 ./scripts/test.sh
 ```
 
-A full run takes about three minutes, most of it in the eval scenarios. `./scripts/test.sh --fast` runs the 13 hook tests only.
+A full run takes about three minutes, most of it in the eval scenarios. `./scripts/test.sh --fast` runs the 14 hook tests only.
 
 ## Running a hook by hand
 
@@ -28,7 +28,7 @@ echo '{"session_id":"dev","transcript_path":"/path/to/transcript.ndjson","stop_h
 ## Testing changes
 
 - Hook tests live in `test/test-*.sh`. Each is standalone: run `bash test/test-handoff.sh` to see its output.
-- Eval scenarios live in `test/evals/scenarios/*.json`. Each names an expected decision and an expected path (`permission`, `heuristic`, or `judge`). Adding a scenario is the cheapest way to pin down a decision you care about.
+- Eval scenarios live in `test/evals/scenarios/*.json`. Each names an expected decision, and path-sensitive scenarios also name an `expected_path` (`heuristic` or `judge`). Adding a scenario is the cheapest way to pin down a decision you care about.
 - `test/snapshots/` holds the judge prompt and schema snapshot. If you change the prompt, run `bash test/test-snapshot-update.sh` to refresh it, and include the updated snapshot in your change.
 
 New behavior needs a test. A bug fix needs a test that fails before the fix.
