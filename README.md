@@ -1,5 +1,8 @@
 # Onward
 
+[![CI](https://github.com/dallascrilley/onward/actions/workflows/ci.yml/badge.svg)](https://github.com/dallascrilley/onward/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Onward keeps Claude Code working through multi-step tasks instead of stopping to ask.
 
 Claude Code stops when it thinks a turn is finished. On a long task that often lands mid-way: the schema is written but the migration is not, the endpoint exists but nothing validates its input. Onward hooks the Stop event, looks at what just happened, and either lets the session end or sends it back to work.
@@ -9,6 +12,8 @@ Claude Code stops when it thinks a turn is finished. On a long task that often l
 A Stop event after "I added the POST /users route. Next I'll add request validation and the integration test.":
 
 ```console
+$ echo '{"role":"assistant","content":"I added the POST /users route. Next I'\''ll add request validation and the integration test."}' \
+    > transcript.ndjson
 $ echo '{"session_id":"demo","transcript_path":"./transcript.ndjson","stop_hook_active":false}' \
     | ./hooks/claude-judge-continuation.sh
 {
@@ -138,16 +143,20 @@ On an approved stop, the Stop hook also writes `.claude/handoff.md`: session id,
 ## Tests
 
 ```bash
-./scripts/test.sh          # 13 hook tests, then 130 eval scenarios (about 3 minutes)
+./scripts/test.sh          # 14 hook tests, then 130 eval cases (about 3 minutes)
 ./scripts/test.sh --fast   # hook tests only
 ```
 
-The eval suite replays 130 recorded transcripts through the real hook with a stubbed `claude` binary and asserts both the decision and the path it took to get there. It needs no API access and no network. A test run uses a throwaway `HOME`, so it never touches your own plugin state.
+The eval suite replays 124 scenario transcripts (plus 6 transcript-validation
+cases) through the real hook with a stubbed `claude` binary. Every case asserts
+the decision; the path-sensitive scenarios also assert which rung produced it.
+It needs no API access and no network. A test run uses a throwaway `HOME`, so
+it never touches your own plugin state.
 
 ## Honest boundaries
 
 - The judge is a Claude Haiku call. It is fast and cheap, and it is still a language model making a judgment call. It will be wrong sometimes, which is why throttling and stall detection exist.
-- The 130 eval scenarios are transcripts I wrote to cover decision categories. They are not sampled from real sessions, and passing them is not evidence of a hit rate in your repo.
+- The eval scenarios are transcripts I wrote to cover decision categories. They are not sampled from real sessions, and passing them is not evidence of a hit rate in your repo.
 - Bash and `jq` only, developed and tested on macOS. It should work on Linux; I have not run it there.
 - Prefilter phrases are English. Non-English transcripts fall through to the judge, which is slower but still correct.
 - No telemetry. Decisions are written to `~/.claude/onward` on your machine and nowhere else.
@@ -158,7 +167,9 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the hook flow, the library 
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Security reports go through [SECURITY.md](SECURITY.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md). Security reports go through
+[SECURITY.md](SECURITY.md). The project follows the
+[Contributor Covenant](CODE_OF_CONDUCT.md).
 
 ## License
 
