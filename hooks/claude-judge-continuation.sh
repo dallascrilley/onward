@@ -21,6 +21,33 @@ source "$SCRIPT_DIR/lib/handoff.sh"
 # Load default configuration
 load_defaults
 
+# Emit a decision made before the judge runs (ignore patterns, permission
+# language, heuristic signals).
+#
+# Prefilters bypass the judge, so they also have to honor the two contracts the
+# judge path owns:
+#   1. Dry-run never blocks a stop, it only reports what it would have done.
+#   2. An approved stop that has transcript context writes a handoff snapshot.
+#
+# Args: decision reason
+emit_prefilter_decision() {
+    local decision="$1"
+    local reason="$2"
+
+    if [ "$decision" = "block" ] && [ "$REDBULL_DRY_RUN" = "true" ]; then
+        debug_log "dry_run_mode" --argjson would_continue true
+        emit_decision "approve" "[DRY-RUN] Would have blocked (continue): $reason"
+        return 0
+    fi
+
+    emit_decision "$decision" "$reason"
+
+    if [ "$decision" = "approve" ]; then
+        # Handoff runs post-emit to avoid blocking stdout
+        handoff_write_if_needed "approve" "$SESSION_ID" "$reason" "$RECENT_CONTEXT"
+    fi
+}
+
 # Check if we're in a recursive call (judge Claude instance)
 if [ "$CLAUDE_HOOK_JUDGE_MODE" = "true" ]; then
     debug_log "recursion_guard"
@@ -150,7 +177,7 @@ IGNORE_MATCH=$(ignore_should_approve_stop "$RECENT_CONTEXT" 2>/dev/null) || true
 if [ -n "$IGNORE_MATCH" ]; then
     debug_log "ignore_pattern_matched" --arg pattern "$IGNORE_MATCH"
     throttle_clear "$THROTTLE_FILE"
-    emit_decision "approve" "Matched ignore pattern: $IGNORE_MATCH"
+    emit_prefilter_decision "approve" "Matched ignore pattern: $IGNORE_MATCH"
     exit 0
 fi
 
@@ -167,17 +194,20 @@ if [ -n "$PERMISSION_PATTERN" ]; then
             --arg decision "$PERMISSION_DECISION"
 
         if [ "$PERMISSION_DECISION" = "block" ]; then
-            # Update throttle tracking (same as judge continue)
-            throttle_read "$THROTTLE_FILE"
-            CONTINUE_COUNT=$((CONTINUE_COUNT + 1))
-            CURRENT_CONTEXT_HASH=$(compute_context_hash "$RECENT_CONTEXT" 2>/dev/null) || true
-            throttle_write "$THROTTLE_FILE" "$CONTINUE_COUNT" "$CURRENT_TIME" "$CURRENT_CONTEXT_HASH"
+            # Update throttle tracking (same as judge continue). Dry-run never
+            # blocks, so it must not consume a continuation either.
+            if [ "$REDBULL_DRY_RUN" != "true" ]; then
+                throttle_read "$THROTTLE_FILE"
+                CONTINUE_COUNT=$((CONTINUE_COUNT + 1))
+                CURRENT_CONTEXT_HASH=$(compute_context_hash "$RECENT_CONTEXT" 2>/dev/null) || true
+                throttle_write "$THROTTLE_FILE" "$CONTINUE_COUNT" "$CURRENT_TIME" "$CURRENT_CONTEXT_HASH"
+            fi
 
-            emit_decision "block" "Permission-seeking language detected ($PERMISSION_PATTERN): assistant asking to continue work"
+            emit_prefilter_decision "block" "Permission-seeking language detected ($PERMISSION_PATTERN): assistant asking to continue work"
             exit 0
         elif [ "$PERMISSION_DECISION" = "approve" ]; then
             throttle_clear "$THROTTLE_FILE"
-            emit_decision "approve" "User choice needed ($PERMISSION_PATTERN): assistant offering optional work or asking for decision"
+            emit_prefilter_decision "approve" "User choice needed ($PERMISSION_PATTERN): assistant offering optional work or asking for decision"
             exit 0
         fi
     fi
@@ -206,17 +236,20 @@ if [ -n "$HEURISTIC_SIGNAL" ]; then
         PERSIST_EVALUATION_RESULT=$(build_heuristic_evaluation "$HEURISTIC_SIGNAL" "$HEURISTIC_STOP" "$HEURISTIC_DECISION")
 
         if [ "$HEURISTIC_DECISION" = "block" ]; then
-            # Update throttle tracking with context hash
-            throttle_read "$THROTTLE_FILE"
-            CONTINUE_COUNT=$((CONTINUE_COUNT + 1))
-            CURRENT_CONTEXT_HASH=$(compute_context_hash "$RECENT_CONTEXT" 2>/dev/null) || true
-            throttle_write "$THROTTLE_FILE" "$CONTINUE_COUNT" "$CURRENT_TIME" "$CURRENT_CONTEXT_HASH"
+            # Update throttle tracking with context hash. Dry-run never blocks,
+            # so it must not consume a continuation either.
+            if [ "$REDBULL_DRY_RUN" != "true" ]; then
+                throttle_read "$THROTTLE_FILE"
+                CONTINUE_COUNT=$((CONTINUE_COUNT + 1))
+                CURRENT_CONTEXT_HASH=$(compute_context_hash "$RECENT_CONTEXT" 2>/dev/null) || true
+                throttle_write "$THROTTLE_FILE" "$CONTINUE_COUNT" "$CURRENT_TIME" "$CURRENT_CONTEXT_HASH"
+            fi
 
-            emit_decision "block" "Heuristic detected '$HEURISTIC_SIGNAL': work continues without judge"
+            emit_prefilter_decision "block" "Heuristic detected '$HEURISTIC_SIGNAL': work continues without judge"
             exit 0
         elif [ "$HEURISTIC_DECISION" = "approve" ]; then
             throttle_clear "$THROTTLE_FILE"
-            emit_decision "approve" "Heuristic detected '$HEURISTIC_SIGNAL': user input needed, stopping without judge"
+            emit_prefilter_decision "approve" "Heuristic detected '$HEURISTIC_SIGNAL': user input needed, stopping without judge"
             exit 0
         fi
     fi
