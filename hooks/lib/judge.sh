@@ -1,4 +1,7 @@
 #!/bin/bash
+# ABOUTME: Evaluates whether the assistant should continue work after a stop request
+# ABOUTME: Uses a separate Claude call and returns structured decision metadata
+
 # judge.sh - Claude-based continuation evaluation
 #
 # Calls a separate Claude instance to judge whether the assistant
@@ -9,6 +12,21 @@
 JUDGE_JSON_SCHEMA='{"type":"object","properties":{"should_continue":{"type":"boolean","description":"Primary decision: should work continue?"},"reasoning":{"type":"string","description":"Full explanation of the decision"},"reasons":{"type":"array","items":{"type":"string"},"description":"Structured list of reasons for logging/analysis"},"confidence":{"type":"number","minimum":0,"maximum":1,"description":"Confidence in decision (0=uncertain, 1=very certain)"},"decision_category":{"type":"string","enum":["explicit_continuation","task_completion","waiting_for_user","blocker","incomplete_work","uncertain"],"description":"Why decision was made"},"signals":{"type":"array","items":{"type":"string","enum":["explicit_next_steps","explicit_completion","asking_for_approval","asking_for_decision","asking_for_clarification","offering_optional_work","incomplete_implementation","error_blocking_progress","missing_information","mid_task_question","stated_todo_items","offering_continuation_question"]},"description":"Detected signal types from transcript"},"risk_level":{"type":"string","enum":["low","medium","high"],"description":"Risk of continuing (high=edge case, low=safe)"},"next_action":{"type":"string","description":"What the assistant should do next (if should_continue=true)"},"constraints":{"type":"array","items":{"type":"string"},"description":"Any constraints or blockers affecting decision"}},"required":["should_continue","reasoning"]}'
 
 JUDGE_SYSTEM_PROMPT="You are a conversation state classifier. Your only job is to analyze conversation transcripts and determine if the assistant has more autonomous work to do. You output structured JSON with decision metadata including confidence scores, categorization, and detected signals. You do not write code or use tools."
+
+# Choose an OS-appropriate timeout command when available to avoid unbounded hook hangs.
+resolve_timeout_command() {
+    if command -v timeout >/dev/null 2>&1; then
+        echo "timeout"
+        return 0
+    fi
+
+    if command -v gtimeout >/dev/null 2>&1; then
+        echo "gtimeout"
+        return 0
+    fi
+
+    echo ""
+}
 
 # Build evaluation prompt with conversation context
 # Usage: EVALUATION_PROMPT=$(build_evaluation_prompt "$RECENT_CONTEXT")
@@ -91,6 +109,9 @@ judge_should_continue() {
     local recent_context="$1"
     local claude_model="$2"
     local claude_work_dir="$3"
+    local judge_timeout_seconds
+    local timeout_command
+    local claude_response
 
     mkdir -p "$claude_work_dir"
 
@@ -102,8 +123,14 @@ judge_should_continue() {
         evaluation_prompt=$(build_evaluation_prompt "$recent_context")
     fi
 
-    local claude_response
-    claude_response=$(printf '%s' "$evaluation_prompt" | (cd "$claude_work_dir" && CLAUDE_HOOK_JUDGE_MODE=true claude --print --model "$claude_model" --output-format json --json-schema "$JUDGE_JSON_SCHEMA" --system-prompt "$JUDGE_SYSTEM_PROMPT" --disallowedTools '*') 2>/dev/null) || return 1
+    judge_timeout_seconds="${ONWARD_JUDGE_TIMEOUT_SECONDS:-12}"
+    timeout_command="$(resolve_timeout_command)"
+
+    if [ -n "$timeout_command" ]; then
+        claude_response=$(printf '%s' "$evaluation_prompt" | (cd "$claude_work_dir" && CLAUDE_HOOK_JUDGE_MODE=true "$timeout_command" "$judge_timeout_seconds" claude --print --model "$claude_model" --output-format json --json-schema "$JUDGE_JSON_SCHEMA" --system-prompt "$JUDGE_SYSTEM_PROMPT" --disallowedTools '*') 2>/dev/null) || return 1
+    else
+        claude_response=$(printf '%s' "$evaluation_prompt" | (cd "$claude_work_dir" && CLAUDE_HOOK_JUDGE_MODE=true claude --print --model "$claude_model" --output-format json --json-schema "$JUDGE_JSON_SCHEMA" --system-prompt "$JUDGE_SYSTEM_PROMPT" --disallowedTools '*') 2>/dev/null) || return 1
+    fi
 
     # Handle both streaming array format and single object format
     printf '%s' "$claude_response" | jq -c 'if type=="array" then .[] else . end | select(has("structured_output")) | .structured_output // empty' 2>/dev/null
