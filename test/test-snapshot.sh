@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# A CDPATH inherited from the caller makes `cd` echo its destination, which
+# would corrupt every path resolved through a cd subshell below.
+unset CDPATH
+
 # Snapshot test for prompt/schema stability
 # Fails if current prompt/schema differs from stored snapshot
 # Run: ./test/test-snapshot.sh

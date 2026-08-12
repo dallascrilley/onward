@@ -3,12 +3,12 @@
 # Decision Log Viewer - View and analyze hook decision history
 # Usage: ./scripts/logs.sh [OPTIONS]
 #
-# Requires: REDBULL_LOG_DECISIONS=true to capture logs
+# Requires: ONWARD_LOG_DECISIONS=true to capture logs
 
 set -euo pipefail
 
 # Configuration
-DECISION_DIR="${REDBULL_STATE_DIR:-$HOME/.claude/redbull}"
+DECISION_DIR="${ONWARD_STATE_DIR:-$HOME/.claude/onward}"
 DECISION_LOG_FILE="$DECISION_DIR/decision_log.jsonl"
 
 # Colors
@@ -27,7 +27,7 @@ show_help() {
     cat <<EOF
 Usage: $(basename "$0") [OPTIONS]
 
-View and analyze the redbull decision log.
+View and analyze the onward decision log.
 
 Options:
   -n, --lines N        Show last N entries (default: 20)
@@ -45,7 +45,7 @@ Examples:
   $(basename "$0") --json | jq ...    # Pipe to jq for custom analysis
 
 Note: Decision logging is enabled by default (last 500 entries).
-      To disable: REDBULL_LOG_DECISIONS=false
+      To disable: ONWARD_LOG_DECISIONS=false
 
 Log Location: $DECISION_LOG_FILE
 EOF
@@ -98,7 +98,7 @@ if [[ ! -f "$DECISION_LOG_FILE" ]]; then
     echo "Decision logging is enabled by default. The log will be created"
     echo "after the first hook decision is made."
     echo ""
-    echo "To disable logging, set: REDBULL_LOG_DECISIONS=false"
+    echo "To disable logging, set: ONWARD_LOG_DECISIONS=false"
     exit 0
 fi
 

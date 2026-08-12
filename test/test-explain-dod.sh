@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# A CDPATH inherited from the caller makes `cd` echo its destination, which
+# would corrupt every path resolved through a cd subshell below.
+unset CDPATH
+
 # Test: explain.sh --verbose shows DoD mode and rule count when present.
 
 set -euo pipefail
@@ -19,7 +23,7 @@ EXPLAIN_SCRIPT="$SCRIPT_DIR/../scripts/explain.sh"
 require_cmd jq
 [ -x "$EXPLAIN_SCRIPT" ] || fail "Explain script not found or not executable: $EXPLAIN_SCRIPT"
 
-TEMP_DIR="$(mktemp -d "/tmp/redbull-explain-XXXXXX")"
+TEMP_DIR="$(mktemp -d "/tmp/onward-explain-XXXXXX")"
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
 DECISION_FILE="$TEMP_DIR/last_decision.json"

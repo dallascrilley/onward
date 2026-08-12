@@ -22,15 +22,15 @@ _apply_numeric_override() {
 load_defaults() {
     # === Throttle Configuration ===
     # Max continuation cycles before forcing stop
-    _apply_numeric_override MAX_CONTINUATIONS 3 "${REDBULL_THROTTLE_LIMIT:-3}" 1
+    _apply_numeric_override MAX_CONTINUATIONS 3 "${ONWARD_THROTTLE_LIMIT:-3}" 1
     # Time window in seconds for throttle counting
-    _apply_numeric_override THROTTLE_WINDOW_SECONDS 300 "${REDBULL_THROTTLE_WINDOW_SECONDS:-300}" 10
+    _apply_numeric_override THROTTLE_WINDOW_SECONDS 300 "${ONWARD_THROTTLE_WINDOW_SECONDS:-300}" 10
 
     # === Judge Configuration ===
     # Number of transcript lines to send to judge
-    _apply_numeric_override TRANSCRIPT_CONTEXT_LINES 10 "${REDBULL_TRANSCRIPT_CONTEXT_LINES:-10}" 1
+    _apply_numeric_override TRANSCRIPT_CONTEXT_LINES 10 "${ONWARD_TRANSCRIPT_CONTEXT_LINES:-10}" 1
     # Model for judge evaluation (validated models: haiku, sonnet, opus)
-    local _model="${REDBULL_JUDGE_MODEL:-haiku}"
+    local _model="${ONWARD_JUDGE_MODEL:-haiku}"
     case "$_model" in
         haiku|sonnet|opus) CLAUDE_MODEL="$_model" ;;
         *) CLAUDE_MODEL="haiku" ;;  # Invalid model, use default
@@ -38,21 +38,21 @@ load_defaults() {
 
     # === Dry-Run Mode ===
     # When true: evaluate but always approve stop (never blocks)
-    case "${REDBULL_DRY_RUN:-false}" in
-        true|TRUE|1) REDBULL_DRY_RUN=true ;;
-        *) REDBULL_DRY_RUN=false ;;
+    case "${ONWARD_DRY_RUN:-false}" in
+        true|TRUE|1) ONWARD_DRY_RUN=true ;;
+        *) ONWARD_DRY_RUN=false ;;
     esac
 
     # === State Directory ===
-    CLAUDE_WORK_DIR="${REDBULL_STATE_DIR:-$HOME/.claude/redbull}"
+    CLAUDE_WORK_DIR="${ONWARD_STATE_DIR:-$HOME/.claude/onward}"
 
     # === Decision Persistence (FTR-005) ===
     DECISION_DIR="$CLAUDE_WORK_DIR"
     LAST_DECISION_FILE="$DECISION_DIR/last_decision.json"
     DECISION_LOG_FILE="$DECISION_DIR/decision_log.jsonl"
-    _apply_numeric_override DECISION_LOG_MAX_LINES 500 "${REDBULL_LOG_MAX_LINES:-500}" 1
+    _apply_numeric_override DECISION_LOG_MAX_LINES 500 "${ONWARD_LOG_MAX_LINES:-500}" 1
     # Decision logging enabled by default for observability
-    case "${REDBULL_LOG_DECISIONS:-true}" in
+    case "${ONWARD_LOG_DECISIONS:-true}" in
         false|FALSE|0) DECISION_LOG_ENABLED=false ;;
         *) DECISION_LOG_ENABLED=true ;;
     esac

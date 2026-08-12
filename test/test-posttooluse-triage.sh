@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# A CDPATH inherited from the caller makes `cd` echo its destination, which
+# would corrupt every path resolved through a cd subshell below.
+unset CDPATH
+
 # Integration tests for WS-07: PostToolUse triage
 # Tests that:
 # 1. Disabled mode (default) approves without creating triage
@@ -61,7 +65,7 @@ echo ""
 echo "Test 1: Triage disabled by default (no file created)"
 
 cd "$TEST_PROJECT"
-unset REDBULL_TRIAGE_ENABLED
+unset ONWARD_TRIAGE_ENABLED
 
 INPUT='{"payload":{"exit_code":1,"command":"test","stderr":"error"}}'
 echo "$INPUT" | "$HOOK_SCRIPT" > /dev/null 2>&1
@@ -73,7 +77,7 @@ else
 fi
 
 # Enable triage for remaining tests
-export REDBULL_TRIAGE_ENABLED=true
+export ONWARD_TRIAGE_ENABLED=true
 
 # --- Test 2: Success (exit 0) does not create triage ---
 echo "Test 2: Success (exit 0) does not create triage"

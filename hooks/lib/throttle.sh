@@ -38,7 +38,12 @@ throttle_file_for_session() {
         safe_session_id="${safe_session_id:0:64}"
     fi
 
-    echo "/tmp/.claude-continue-throttle-${safe_session_id}"
+    # Throttle state belongs to the state directory, not /tmp. A shared /tmp
+    # leaks continuation counts between users on the same machine and between
+    # runs that reuse a session id.
+    local throttle_dir="${CLAUDE_WORK_DIR:-$HOME/.claude/onward}/throttle"
+    mkdir -p "$throttle_dir" 2>/dev/null || true
+    echo "${throttle_dir}/${safe_session_id}"
 }
 
 # Reads throttle file, sets CONTINUE_COUNT, LAST_CONTINUE_TIME, and CONTEXT_HASH globals

@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# A CDPATH inherited from the caller makes `cd` echo its destination, which
+# would corrupt every path resolved through a cd subshell below.
+unset CDPATH
+
 # Integration tests for WS-04: Handoff snapshot on approved stop
 # Tests that:
 # 1. Approved stop creates .claude/handoff.md
@@ -63,12 +67,24 @@ skip() {
     TESTS_RUN=$((TESTS_RUN + 1))
 }
 
-# Create a mock transcript file for testing
+# Create a mock transcript file for testing.
+# The completion language here matches the heuristic prefilter, so the hook
+# approves the stop without calling the judge.
 create_mock_transcript() {
     local transcript_file="$1"
     cat > "$transcript_file" << 'EOF'
 {"role": "user", "content": "Create a simple function"}
 {"role": "assistant", "content": "I'll create a simple function for you. Done!"}
+EOF
+}
+
+# Create a transcript that carries no prefilter signal, so the decision comes
+# from the judge and the stub claude's answer is what decides the outcome.
+create_judge_path_transcript() {
+    local transcript_file="$1"
+    cat > "$transcript_file" << 'EOF'
+{"role": "user", "content": "Create a simple function"}
+{"role": "assistant", "content": "I updated the helper module and adjusted two call sites."}
 EOF
 }
 
@@ -99,7 +115,7 @@ mkdir -p "$TEST_PROJECT"
 cd "$TEST_PROJECT"
 
 # Create decision dir for the hook
-mkdir -p "$TEST_HOME/.claude/redbull"
+mkdir -p "$TEST_HOME/.claude/onward"
 
 # Create transcript
 TRANSCRIPT_FILE="$TEST_PROJECT/transcript.ndjson"
@@ -126,9 +142,9 @@ rm -rf "$TEST_PROJECT"
 mkdir -p "$TEST_PROJECT"
 cd "$TEST_PROJECT"
 
-# Create transcript
+# Create transcript that reaches the judge
 TRANSCRIPT_FILE="$TEST_PROJECT/transcript.ndjson"
-create_mock_transcript "$TRANSCRIPT_FILE"
+create_judge_path_transcript "$TRANSCRIPT_FILE"
 
 # Setup stub that blocks stop (continues)
 setup_stub_claude "true"
@@ -302,6 +318,30 @@ if [[ ! -f "$TEST_PROJECT/.claude/handoff.md" ]]; then
     pass "handoff_write_if_needed with block decision does nothing"
 else
     fail "handoff_write_if_needed with block decision does nothing" "Handoff was created for block decision"
+fi
+
+# --- Test 9: Judge-approved stop creates handoff ---
+# Tests 1, 3, 6 and 7 cover the prefilter path. This covers the judge path, so a
+# regression in either path fails the suite.
+echo "Test 9: Judge-approved stop creates handoff"
+
+rm -rf "$TEST_PROJECT"
+mkdir -p "$TEST_PROJECT"
+cd "$TEST_PROJECT"
+
+TRANSCRIPT_FILE="$TEST_PROJECT/transcript.ndjson"
+create_judge_path_transcript "$TRANSCRIPT_FILE"
+
+setup_stub_claude "false"
+
+HOOK_INPUT='{"session_id":"test-handoff-judge","transcript_path":"'"$TRANSCRIPT_FILE"'","stop_hook_active":false}'
+echo "$HOOK_INPUT" | "$HOOK_SCRIPT" > /dev/null 2>&1 || true
+
+if [[ -f "$TEST_PROJECT/.claude/handoff.md" ]] && \
+   grep -q "test-handoff-judge" "$TEST_PROJECT/.claude/handoff.md"; then
+    pass "Judge-approved stop creates handoff"
+else
+    fail "Judge-approved stop creates handoff" "Handoff missing or session ID absent"
 fi
 
 # --- Summary ---

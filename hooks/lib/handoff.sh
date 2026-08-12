@@ -49,7 +49,7 @@ _handoff_build_and_write() {
     mkdir -p "$handoff_dir" 2>/dev/null || return 0
 
     # Build the handoff content
-    handoff_content="# Redbull Handoff
+    handoff_content="# Onward Handoff
 
 **Session:** $session_id
 **Stopped:** $timestamp

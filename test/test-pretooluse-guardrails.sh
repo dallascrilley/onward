@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# A CDPATH inherited from the caller makes `cd` echo its destination, which
+# would corrupt every path resolved through a cd subshell below.
+unset CDPATH
+
 # Integration tests for WS-05: PreToolUse guardrails
 # Tests that:
 # 1. Disabled mode (default) approves all
@@ -65,7 +69,7 @@ echo ""
 # --- Test 1: Disabled by default ---
 echo "Test 1: Guardrails disabled by default (approves all)"
 
-unset REDBULL_GUARDRAILS_ENABLED
+unset ONWARD_GUARDRAILS_ENABLED
 INPUT='{"payload":{"command":"rm -rf /"}}'
 RESULT=$(run_hook "$INPUT" "approve")
 
@@ -76,7 +80,7 @@ else
 fi
 
 # Enable guardrails for remaining tests
-export REDBULL_GUARDRAILS_ENABLED=true
+export ONWARD_GUARDRAILS_ENABLED=true
 
 # --- Test 2: Block rm -rf / ---
 echo "Test 2: Block rm -rf /"

@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# A CDPATH inherited from the caller makes `cd` echo its destination, which
+# would corrupt every path resolved through a cd subshell below.
+unset CDPATH
+
 # Integration tests for FTR-005: Decision persistence and explain command
 # Tests that:
 # 1. Hook writes last_decision.json after decisions
@@ -28,7 +32,7 @@ EXPLAIN_SCRIPT="$REPO_ROOT/scripts/explain.sh"
 
 # Test isolation: use temp directory for ~/.claude
 TEST_HOME=$(mktemp -d)
-TEST_DECISION_DIR="$TEST_HOME/.claude/redbull"
+TEST_DECISION_DIR="$TEST_HOME/.claude/onward"
 ORIGINAL_HOME="$HOME"
 
 # Cleanup on exit
@@ -200,8 +204,8 @@ fi
 echo "Test 7: Decision log rotation (when enabled)"
 
 # Enable logging and set low max
-export REDBULL_LOG_DECISIONS=true
-export REDBULL_LOG_MAX_LINES=5
+export ONWARD_LOG_DECISIONS=true
+export ONWARD_LOG_MAX_LINES=5
 
 TRANSCRIPT_FILE=$(mktemp)
 create_mock_transcript "$TRANSCRIPT_FILE"
@@ -225,8 +229,8 @@ else
 fi
 
 rm -f "$TRANSCRIPT_FILE"
-unset REDBULL_LOG_DECISIONS
-unset REDBULL_LOG_MAX_LINES
+unset ONWARD_LOG_DECISIONS
+unset ONWARD_LOG_MAX_LINES
 
 # --- Test 8: Early exit decisions still persist ---
 echo "Test 8: Early exit decisions (no transcript) persist"
@@ -250,7 +254,7 @@ fi
 echo "Test 9: explain.sh respects DECISION_DIR override"
 
 # Pseudocode: write decision in custom dir -> run explain.sh with DECISION_DIR -> expect output to include session id
-CUSTOM_DECISION_DIR="$TEST_HOME/.claude/custom-latte"
+CUSTOM_DECISION_DIR="$TEST_HOME/.claude/custom-state-dir"
 mkdir -p "$CUSTOM_DECISION_DIR"
 cat > "$CUSTOM_DECISION_DIR/last_decision.json" << 'EOF'
 {

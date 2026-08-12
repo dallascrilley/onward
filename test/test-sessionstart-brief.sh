@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# A CDPATH inherited from the caller makes `cd` echo its destination, which
+# would corrupt every path resolved through a cd subshell below.
+unset CDPATH
+
 # Integration tests for WS-06: SessionStart brief
 # Tests that:
 # 1. Disabled mode (default) approves without creating brief
@@ -60,7 +64,7 @@ echo ""
 echo "Test 1: Brief disabled by default (no file created)"
 
 cd "$TEST_PROJECT"
-unset REDBULL_SESSION_BRIEF_ENABLED
+unset ONWARD_SESSION_BRIEF_ENABLED
 
 INPUT='{"session_id":"test-001"}'
 echo "$INPUT" | "$HOOK_SCRIPT" > /dev/null 2>&1
@@ -78,7 +82,7 @@ rm -rf "$TEST_PROJECT"
 mkdir -p "$TEST_PROJECT"
 cd "$TEST_PROJECT"
 
-export REDBULL_SESSION_BRIEF_ENABLED=true
+export ONWARD_SESSION_BRIEF_ENABLED=true
 
 INPUT='{"session_id":"test-002"}'
 echo "$INPUT" | "$HOOK_SCRIPT" > /dev/null 2>&1

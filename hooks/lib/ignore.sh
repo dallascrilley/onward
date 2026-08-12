@@ -5,12 +5,12 @@
 # Patterns are literal substrings (not regex) matched against transcript content.
 
 # Get the ignore patterns file path
-# Search order: REDBULL_IGNORE_PATTERNS_PATH > .redbull/ignore.txt > .claude/redbull-ignore.txt
+# Search order: ONWARD_IGNORE_PATTERNS_PATH > .onward/ignore.txt > .claude/onward-ignore.txt
 _get_ignore_patterns_file() {
     # Explicit path takes precedence
-    if [ -n "$REDBULL_IGNORE_PATTERNS_PATH" ]; then
-        if [ -r "$REDBULL_IGNORE_PATTERNS_PATH" ]; then
-            echo "$REDBULL_IGNORE_PATTERNS_PATH"
+    if [ -n "$ONWARD_IGNORE_PATTERNS_PATH" ]; then
+        if [ -r "$ONWARD_IGNORE_PATTERNS_PATH" ]; then
+            echo "$ONWARD_IGNORE_PATTERNS_PATH"
             return 0
         fi
         return 1  # Explicit path not readable
@@ -18,8 +18,8 @@ _get_ignore_patterns_file() {
 
     # Check standard locations
     local locations=(
-        ".redbull/ignore.txt"
-        ".claude/redbull-ignore.txt"
+        ".onward/ignore.txt"
+        ".claude/onward-ignore.txt"
     )
 
     for loc in "${locations[@]}"; do
