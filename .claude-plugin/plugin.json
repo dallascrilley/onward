@@ -1,5 +1,19 @@
 {
-  "name": "redbull",
-  "version": "1.2.0",
-  "description": "Automatically evaluates whether Claude should continue working instead of stopping prematurely using Claude-judged decision making"
+  "name": "onward",
+  "version": "2.0.0",
+  "description": "Keeps Claude Code working through multi-step tasks instead of stopping to ask",
+  "author": {
+    "name": "Dallas Crilley",
+    "url": "https://github.com/dallascrilley"
+  },
+  "homepage": "https://github.com/dallascrilley/onward",
+  "repository": "https://github.com/dallascrilley/onward",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "plugin",
+    "hooks",
+    "automation",
+    "bash"
+  ]
 }

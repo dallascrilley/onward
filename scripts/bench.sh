@@ -224,7 +224,7 @@ if [ -n "$BASELINE_REF" ] && [ "$NO_BASELINE" = "false" ]; then
     if [ -n "$(git status --porcelain)" ]; then
         echo "Warning: working tree has changes; baseline comparison uses a detached worktree." >&2
     fi
-    tmp_worktree="$(mktemp -d /tmp/redbull-bench.XXXX)"
+    tmp_worktree="$(mktemp -d /tmp/onward-bench.XXXX)"
     cleanup() {
         git worktree remove -f "$tmp_worktree" >/dev/null 2>&1 || true
         rm -rf "$tmp_worktree"

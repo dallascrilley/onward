@@ -1,26 +1,26 @@
 #!/bin/bash
 # settings.sh - Per-project settings reader
 #
-# Reads opt-in settings from .claude/redbull.local.md
+# Reads opt-in settings from .claude/onward.local.md
 # Uses YAML frontmatter format. Fail-closed: missing/invalid = safe defaults.
 #
 # Exported variables after settings_load():
-# - REDBULL_ENABLED (true|false)
-# - REDBULL_AGGRESSIVENESS (low|medium|high)
+# - ONWARD_ENABLED (true|false)
+# - ONWARD_AGGRESSIVENESS (low|medium|high)
 
 # Returns the settings file path
 settings_get_path() {
-    if [ -n "${REDBULL_SETTINGS_PATH:-}" ]; then
-        printf '%s\n' "$REDBULL_SETTINGS_PATH"
+    if [ -n "${ONWARD_SETTINGS_PATH:-}" ]; then
+        printf '%s\n' "$ONWARD_SETTINGS_PATH"
         return 0
     fi
-    printf '%s\n' ".claude/redbull.local.md"
+    printf '%s\n' ".claude/onward.local.md"
 }
 
 # Set safe defaults
 _settings_default() {
-    REDBULL_ENABLED="true"
-    REDBULL_AGGRESSIVENESS="high"
+    ONWARD_ENABLED="true"
+    ONWARD_AGGRESSIVENESS="high"
     DEFINITION_OF_DONE=""
     DOD_ENFORCEMENT="advisory"
 }
@@ -75,12 +75,12 @@ settings_load() {
         case "$key" in
             enabled)
                 case "$value" in
-                    true|false) REDBULL_ENABLED="$value" ;;
+                    true|false) ONWARD_ENABLED="$value" ;;
                 esac
                 ;;
             aggressiveness)
                 case "$value" in
-                    low|medium|high) REDBULL_AGGRESSIVENESS="$value" ;;
+                    low|medium|high) ONWARD_AGGRESSIVENESS="$value" ;;
                 esac
                 ;;
             dod_enforcement)
@@ -99,7 +99,7 @@ settings_load() {
 
 # Apply aggressiveness to TRANSCRIPT_CONTEXT_LINES
 settings_apply_aggressiveness() {
-    case "$REDBULL_AGGRESSIVENESS" in
+    case "$ONWARD_AGGRESSIVENESS" in
         low)    TRANSCRIPT_CONTEXT_LINES=6 ;;
         medium) TRANSCRIPT_CONTEXT_LINES=10 ;;
         high)   TRANSCRIPT_CONTEXT_LINES=14 ;;

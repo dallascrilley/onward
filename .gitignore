@@ -1,6 +1,24 @@
-.beads/
+# Session artifacts written by the hooks into the working directory
 .claude/handoff.md
 .claude/session-brief.md
 .claude/triage.md
+.claude/settings.local.json
+
+# Local plugin configuration and ignore patterns
+.claude/onward.local.md
+.onward/
+
+# Test and benchmark output
+test/evals/results/*.json
+
+# Agent and tracker state
+.beads/
+.planning/
 .reviewrover/
-prompts/*
+prompts/
+
+# OS and editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+*~

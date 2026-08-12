@@ -1,9 +1,41 @@
 # Changelog
 
-All notable changes to Redbull for Claude Code will be documented in this file.
+All notable changes to Onward will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [2.0.0] - 2026-08-12
+
+### Changed
+
+- **Renamed to Onward.** The project was previously called "Redbull for Claude Code" (plugin name `redbull`), which borrowed a registered trademark it has nothing to do with. Everything user-facing moved with the name, and there are no compatibility shims:
+  - Environment variables: `REDBULL_*` are now `ONWARD_*` (for example `REDBULL_DRY_RUN` is now `ONWARD_DRY_RUN`).
+  - State directory: `~/.claude/redbull/` is now `~/.claude/onward/`. Move the directory to keep your decision history, or let it be recreated.
+  - Per-project settings: `.claude/redbull.local.md` is now `.claude/onward.local.md`.
+  - Ignore patterns: `.redbull/ignore.txt` and `.claude/redbull-ignore.txt` are now `.onward/ignore.txt` and `.claude/onward-ignore.txt`.
+  - Project rules: `.redbull/rules.md` and `.claude/redbull-rules.md` are now `.onward/rules.md` and `.claude/onward-rules.md`.
+- **Install is now direct from this repository.** The plugin previously installed from a separate private marketplace. The repository now carries its own `.claude-plugin/marketplace.json`, so `claude plugin marketplace add ./onward` followed by `claude plugin install onward@onward` is the whole install.
+
+### Fixed
+
+- **Handoff snapshots on prefiltered stops.** The permission and heuristic prefilters resolve most stops without calling the judge, and they were exiting before the handoff write. `.claude/handoff.md` was never produced for those decisions, which is most of them.
+- **Dry-run on prefiltered decisions.** `ONWARD_DRY_RUN=true` promised never to block a stop, but a prefilter block ignored it and consumed a continuation from the throttle budget.
+- **Decision persistence on early exits.** Every decision made without a judge evaluation (missing transcript, empty transcript, invalid input) failed to persist: the record builder referenced two jq variables it never passed, so the write silently failed and `explain.sh` kept showing an older decision.
+- **`missing_information` heuristic on Linux.** The pattern used BSD-only word boundaries (`[[:<:]]`), which GNU grep does not match, so the signal never fired on Linux and those stops fell through to the judge.
+- **`explain.sh` without `bc`.** A missing optional `bc` aborted the whole command instead of printing the raw confidence value.
+- **Inherited `CDPATH`.** An exported `CDPATH` made `cd` echo its destination inside every path-resolving subshell, breaking hook startup and corrupting the judge's captured output.
+
+### Added
+
+- `scripts/test.sh` runs the hook tests and the eval suite in one command, in a throwaway `HOME` so a test run cannot touch real plugin state.
+- CI on GitHub Actions: tests on Ubuntu and macOS, ShellCheck, and manifest validation.
+- `LICENSE` (MIT), `SECURITY.md`, `CONTRIBUTING.md`, and `docs/ARCHITECTURE.md`.
+- A test covering the judge-approved handoff path, so both the prefilter and judge paths are held by the suite.
+
+### Removed
+
+- Internal planning, ideation, and workplan directories (`.planning/`, `docs/plans/`, `docs/ideas/`, `prompts/`) and the agent configuration files that described how to work on the repo. None of it was useful outside the sessions that produced it.
 
 ## [1.2.0] - 2025-12-24
 
@@ -110,18 +142,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fixed plugin manifest validation error requiring hooks paths to start with "./"
-- Plugin now installs correctly from dallas-plugin-marketplace
+- Plugin now installs correctly from a marketplace
 
 ### Changed
 
-- Simplified installation to single command from dallas-plugin-marketplace
+- Simplified installation to a single command
 - Cleaned up README using Strunk's writing principles for clarity and conciseness
 
 ## [1.0.0] - 2024-11-20
 
 ### Added
 
-- Initial release of Redbull for Claude Code plugin
+- Initial release of the plugin (see the 2.0.0 entry for the name it shipped under)
 - Claude-judged Stop hook that automatically evaluates continuation decisions
 - Aggressive continuation logic with time-based throttling (3 continuations per 5 minutes)
 - Recursion prevention via CLAUDE_HOOK_JUDGE_MODE environment variable

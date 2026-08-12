@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# A CDPATH inherited from the caller makes `cd` echo its destination, which
+# would corrupt every path resolved through a cd subshell below.
+unset CDPATH
+
 # Hook Evaluation Test Suite
 # Runs contrived conversation scenarios through the hook and validates decisions
 
@@ -8,7 +12,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCENARIOS_DIR="$SCRIPT_DIR/scenarios"
 # Canonical hook script path for testing (relative to repo root: hooks/claude-judge-continuation.sh)
-# Note: The hook system uses ${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd as entrypoint,
+# Note: Claude Code invokes the hook through ${CLAUDE_PLUGIN_ROOT} per hooks.json,
 # but tests call the script directly for validation.
 HOOK_SCRIPT="$SCRIPT_DIR/../../hooks/claude-judge-continuation.sh"
 TEMP_DIR="/tmp/hook-evals-$$"
@@ -449,7 +453,14 @@ run_transcript_validation_cases() {
 
     run_case "missing transcript path" "" false "No transcript path provided" "false"
     run_case "missing transcript file" "$missing_path" false "Transcript file not found" "false"
-    run_case "unreadable transcript file" "$unreadable_file" false "Transcript file not readable" "false"
+    # chmod 000 does not stop root, so this case is only meaningful unprivileged.
+    if [ "$(id -u)" -eq 0 ]; then
+        echo "🧩 Case: unreadable transcript file"
+        echo "   SKIP (running as root, permissions do not apply)"
+        echo ""
+    else
+        run_case "unreadable transcript file" "$unreadable_file" false "Transcript file not readable" "false"
+    fi
     chmod 600 "$unreadable_file"
     run_case "empty transcript file" "$empty_file" false "Transcript file is empty" "false"
     run_case "invalid NDJSON only" "$invalid_file" false "No valid transcript entries found" "false"
@@ -460,7 +471,7 @@ run_transcript_validation_cases() {
 }
 
 # Decision file location for v2 validation
-LAST_DECISION_FILE="${REDBULL_STATE_DIR:-$HOME/.claude/redbull}/last_decision.json"
+LAST_DECISION_FILE="${ONWARD_STATE_DIR:-$HOME/.claude/onward}/last_decision.json"
 
 # Process each scenario file
 for scenario_file in "$SCENARIOS_DIR"/$SCENARIO_GLOB; do
@@ -515,9 +526,9 @@ for scenario_file in "$SCENARIOS_DIR"/$SCENARIO_GLOB; do
             if [ -n "$expected_v2_fields" ] && [ "$expected_v2_fields" != "null" ]; then
                 stub_v2_fields=$(generate_stub_v2_fields "$expected_v2_fields" "$expected_decision")
             fi
-            hook_output=$(echo "$hook_event" | REDBULL_DEBUG=true STUB_EXPECTED_DECISION="$expected_decision" STUB_V2_FIELDS="$stub_v2_fields" "$HOOK_SCRIPT" 2>"$stderr_file")
+            hook_output=$(echo "$hook_event" | ONWARD_DEBUG=true STUB_EXPECTED_DECISION="$expected_decision" STUB_V2_FIELDS="$stub_v2_fields" "$HOOK_SCRIPT" 2>"$stderr_file")
         else
-            hook_output=$(echo "$hook_event" | REDBULL_DEBUG=true "$HOOK_SCRIPT" 2>"$stderr_file")
+            hook_output=$(echo "$hook_event" | ONWARD_DEBUG=true "$HOOK_SCRIPT" 2>"$stderr_file")
         fi
         hook_exit_code=$?
         hook_stderr=$(cat "$stderr_file" 2>/dev/null)

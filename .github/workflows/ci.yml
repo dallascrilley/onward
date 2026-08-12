@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install jq and bc
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            command -v jq >/dev/null 2>&1 || brew install jq
+            command -v bc >/dev/null 2>&1 || brew install bc
+          else
+            sudo apt-get update
+            sudo apt-get install -y jq bc
+          fi
+          jq --version
+          bc --version | head -1
+
+      - name: Run tests
+        run: ./scripts/test.sh
+
+  lint:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Lint hooks and scripts
+        run: |
+          shellcheck --severity=error --shell=bash \
+            hooks/*.sh hooks/lib/*.sh scripts/*.sh test/*.sh test/evals/run-evals.sh
+
+  manifests:
+    name: Manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Validate JSON
+        run: |
+          fail=0
+          while IFS= read -r file; do
+            if ! jq empty "$file" 2>/dev/null; then
+              echo "Invalid JSON: $file"
+              fail=1
+            fi
+          done < <(git ls-files '*.json')
+          exit "$fail"
+
+      - name: Check plugin version matches changelog
+        run: |
+          version=$(jq -r '.version' .claude-plugin/plugin.json)
+          if ! grep -q "^## \[$version\]" CHANGELOG.md; then
+            echo "plugin.json version $version has no CHANGELOG.md section"
+            exit 1
+          fi
+          echo "plugin.json $version is present in CHANGELOG.md"

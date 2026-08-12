@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# A CDPATH inherited from the caller makes `cd` echo its destination, which
+# would corrupt every path resolved through a cd subshell below.
+unset CDPATH
+
 # Control Plane Test Suite
 # Tests env var configuration, dry-run mode, and ignore patterns
 
@@ -35,14 +39,14 @@ echo "📋 Test: Config defaults load correctly"
 # Source config and check defaults
 (
     # Unset any inherited env vars to test true defaults
-    unset REDBULL_THROTTLE_LIMIT
-    unset REDBULL_THROTTLE_WINDOW_SECONDS
-    unset REDBULL_TRANSCRIPT_CONTEXT_LINES
-    unset REDBULL_JUDGE_MODEL
-    unset REDBULL_DRY_RUN
-    unset REDBULL_STATE_DIR
-    unset REDBULL_LOG_MAX_LINES
-    unset REDBULL_LOG_DECISIONS
+    unset ONWARD_THROTTLE_LIMIT
+    unset ONWARD_THROTTLE_WINDOW_SECONDS
+    unset ONWARD_TRANSCRIPT_CONTEXT_LINES
+    unset ONWARD_JUDGE_MODEL
+    unset ONWARD_DRY_RUN
+    unset ONWARD_STATE_DIR
+    unset ONWARD_LOG_MAX_LINES
+    unset ONWARD_LOG_DECISIONS
 
     source "$SCRIPT_DIR/../hooks/lib/config.sh"
     load_defaults
@@ -50,18 +54,18 @@ echo "📋 Test: Config defaults load correctly"
     [ "$THROTTLE_WINDOW_SECONDS" = "300" ] || exit 1
     [ "$TRANSCRIPT_CONTEXT_LINES" = "10" ] || exit 1
     [ "$CLAUDE_MODEL" = "haiku" ] || exit 1
-    [ "$REDBULL_DRY_RUN" = "false" ] || exit 1
+    [ "$ONWARD_DRY_RUN" = "false" ] || exit 1
 ) && pass "Defaults loaded correctly" || fail "Defaults not loaded correctly"
 
 # --- Test 2: Env var overrides ---
 echo "📋 Test: Env var overrides work"
 
 (
-    export REDBULL_THROTTLE_LIMIT=5
-    export REDBULL_THROTTLE_WINDOW_SECONDS=600
-    export REDBULL_TRANSCRIPT_CONTEXT_LINES=20
-    export REDBULL_JUDGE_MODEL=sonnet
-    export REDBULL_DRY_RUN=true
+    export ONWARD_THROTTLE_LIMIT=5
+    export ONWARD_THROTTLE_WINDOW_SECONDS=600
+    export ONWARD_TRANSCRIPT_CONTEXT_LINES=20
+    export ONWARD_JUDGE_MODEL=sonnet
+    export ONWARD_DRY_RUN=true
 
     source "$SCRIPT_DIR/../hooks/lib/config.sh"
     load_defaults
@@ -70,16 +74,16 @@ echo "📋 Test: Env var overrides work"
     [ "$THROTTLE_WINDOW_SECONDS" = "600" ] || exit 1
     [ "$TRANSCRIPT_CONTEXT_LINES" = "20" ] || exit 1
     [ "$CLAUDE_MODEL" = "sonnet" ] || exit 1
-    [ "$REDBULL_DRY_RUN" = "true" ] || exit 1
+    [ "$ONWARD_DRY_RUN" = "true" ] || exit 1
 ) && pass "Env var overrides work" || fail "Env var overrides failed"
 
 # --- Test 3: Invalid numeric values fallback to defaults ---
 echo "📋 Test: Invalid numeric values use defaults"
 
 (
-    export REDBULL_THROTTLE_LIMIT="invalid"
-    export REDBULL_THROTTLE_WINDOW_SECONDS=-1
-    export REDBULL_TRANSCRIPT_CONTEXT_LINES=0
+    export ONWARD_THROTTLE_LIMIT="invalid"
+    export ONWARD_THROTTLE_WINDOW_SECONDS=-1
+    export ONWARD_TRANSCRIPT_CONTEXT_LINES=0
 
     source "$SCRIPT_DIR/../hooks/lib/config.sh"
     load_defaults
@@ -93,7 +97,7 @@ echo "📋 Test: Invalid numeric values use defaults"
 echo "📋 Test: Invalid model uses default haiku"
 
 (
-    export REDBULL_JUDGE_MODEL="gpt-4"
+    export ONWARD_JUDGE_MODEL="gpt-4"
 
     source "$SCRIPT_DIR/../hooks/lib/config.sh"
     load_defaults
@@ -120,7 +124,7 @@ HOOK_EVENT=$(jq -n \
     }')
 
 # Run with dry-run mode (should approve even though stub would continue)
-RESULT=$(echo "$HOOK_EVENT" | REDBULL_DRY_RUN=true STUB_EXPECTED_DECISION=true "$HOOK_SCRIPT" 2>/dev/null)
+RESULT=$(echo "$HOOK_EVENT" | ONWARD_DRY_RUN=true STUB_EXPECTED_DECISION=true "$HOOK_SCRIPT" 2>/dev/null)
 DECISION=$(echo "$RESULT" | jq -r '.decision')
 REASON=$(echo "$RESULT" | jq -r '.reason')
 
@@ -134,8 +138,8 @@ fi
 echo "📋 Test: Ignore patterns bypass judge"
 
 # Create ignore patterns file
-mkdir -p "$TEMP_DIR/.redbull"
-cat > "$TEMP_DIR/.redbull/ignore.txt" <<'EOF'
+mkdir -p "$TEMP_DIR/.onward"
+cat > "$TEMP_DIR/.onward/ignore.txt" <<'EOF'
 # Comment line - should be ignored
 I have finished
 task is complete
@@ -155,7 +159,7 @@ HOOK_EVENT=$(jq -n \
         "stop_hook_active": false
     }')
 
-# Run from temp dir so .redbull/ignore.txt is found
+# Run from temp dir so .onward/ignore.txt is found
 RESULT=$(cd "$TEMP_DIR" && echo "$HOOK_EVENT" | "$HOOK_SCRIPT" 2>/dev/null)
 DECISION=$(echo "$RESULT" | jq -r '.decision')
 REASON=$(echo "$RESULT" | jq -r '.reason')
@@ -224,7 +228,7 @@ HOOK_EVENT=$(jq -n \
     }')
 
 # Run with throttle limit of 1 - should force stop (count 1 >= limit 1)
-RESULT=$(echo "$HOOK_EVENT" | REDBULL_THROTTLE_LIMIT=1 STUB_EXPECTED_DECISION=true "$HOOK_SCRIPT" 2>/dev/null)
+RESULT=$(echo "$HOOK_EVENT" | ONWARD_THROTTLE_LIMIT=1 STUB_EXPECTED_DECISION=true "$HOOK_SCRIPT" 2>/dev/null)
 DECISION=$(echo "$RESULT" | jq -r '.decision')
 
 rm -f "$THROTTLE_FILE"

@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# A CDPATH inherited from the caller makes `cd` echo its destination, which
+# would corrupt every path resolved through a cd subshell below.
+unset CDPATH
+
 # Claude Auto-Continue Plugin - Stop Hook Script (Aggressive Version)
 # Automatically evaluates whether Claude should continue working instead of stopping prematurely
 # Uses another Claude instance to judge whether continuation is appropriate
@@ -34,7 +38,7 @@ emit_prefilter_decision() {
     local decision="$1"
     local reason="$2"
 
-    if [ "$decision" = "block" ] && [ "$REDBULL_DRY_RUN" = "true" ]; then
+    if [ "$decision" = "block" ] && [ "$ONWARD_DRY_RUN" = "true" ]; then
         debug_log "dry_run_mode" --argjson would_continue true
         emit_decision "approve" "[DRY-RUN] Would have blocked (continue): $reason"
         return 0
@@ -101,7 +105,7 @@ fi
 settings_load
 
 # Early exit: Plugin disabled by per-project settings
-if [ "$REDBULL_ENABLED" = "false" ]; then
+if [ "$ONWARD_ENABLED" = "false" ]; then
     emit_decision "approve" "Disabled by per-project settings"
     exit 0
 fi
@@ -196,7 +200,7 @@ if [ -n "$PERMISSION_PATTERN" ]; then
         if [ "$PERMISSION_DECISION" = "block" ]; then
             # Update throttle tracking (same as judge continue). Dry-run never
             # blocks, so it must not consume a continuation either.
-            if [ "$REDBULL_DRY_RUN" != "true" ]; then
+            if [ "$ONWARD_DRY_RUN" != "true" ]; then
                 throttle_read "$THROTTLE_FILE"
                 CONTINUE_COUNT=$((CONTINUE_COUNT + 1))
                 CURRENT_CONTEXT_HASH=$(compute_context_hash "$RECENT_CONTEXT" 2>/dev/null) || true
@@ -238,7 +242,7 @@ if [ -n "$HEURISTIC_SIGNAL" ]; then
         if [ "$HEURISTIC_DECISION" = "block" ]; then
             # Update throttle tracking with context hash. Dry-run never blocks,
             # so it must not consume a continuation either.
-            if [ "$REDBULL_DRY_RUN" != "true" ]; then
+            if [ "$ONWARD_DRY_RUN" != "true" ]; then
                 throttle_read "$THROTTLE_FILE"
                 CONTINUE_COUNT=$((CONTINUE_COUNT + 1))
                 CURRENT_CONTEXT_HASH=$(compute_context_hash "$RECENT_CONTEXT" 2>/dev/null) || true
@@ -270,7 +274,7 @@ throttle_read "$THROTTLE_FILE"
 
 if [ -n "$CURRENT_CONTEXT_HASH" ]; then
     # Detect stall from decision log
-    DECISION_LOG_FILE="${DECISION_DIR:-$HOME/.claude/redbull}/decision_log.jsonl"
+    DECISION_LOG_FILE="${DECISION_DIR:-$HOME/.claude/onward}/decision_log.jsonl"
     STALL_SIGNALS=$(detect_stall "$CURRENT_CONTEXT_HASH" "$DECISION_LOG_FILE" 2>/dev/null) || true
 
     if [ -n "$STALL_SIGNALS" ] && [ "$STALL_SIGNALS" != "null" ]; then
@@ -341,7 +345,7 @@ HAS_REASONING=$( [ -n "$REASONING" ] && [ "$REASONING" != "No reasoning provided
 debug_log "evaluation_parsed" \
     --argjson should_continue "$(json_bool "$SHOULD_CONTINUE" false)" \
     --argjson has_reasoning "$(json_bool "$HAS_REASONING" false)" \
-    --argjson dry_run "$(json_bool "$REDBULL_DRY_RUN" false)"
+    --argjson dry_run "$(json_bool "$ONWARD_DRY_RUN" false)"
 
 # --- Stall Risk Threshold Adjustments (Phase 5) ---
 STALL_OVERRIDE=""
@@ -376,7 +380,7 @@ if [ "$SHOULD_CONTINUE" = "true" ] && [ "$STALL_RISK" -gt 0 ]; then
 fi
 
 # --- Dry-run mode: evaluate but always approve stop ---
-if [ "$REDBULL_DRY_RUN" = "true" ]; then
+if [ "$ONWARD_DRY_RUN" = "true" ]; then
     debug_log "dry_run_mode" --argjson would_continue "$(json_bool "$SHOULD_CONTINUE" false)"
     # Don't update throttle in dry-run mode
     emit_decision "approve" "[DRY-RUN] Would have $([ "$SHOULD_CONTINUE" = "true" ] && echo "blocked (continue)" || echo "approved (stop)"): $REASONING"

@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# A CDPATH inherited from the caller makes `cd` echo its destination, which
+# would corrupt every path resolved through a cd subshell below.
+unset CDPATH
+
 # Regenerates the prompt/schema snapshot from current hook implementation
 # Run this intentionally when prompts are changed
 # Usage: ./test/test-snapshot-update.sh

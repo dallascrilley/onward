@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# A CDPATH inherited from the caller makes `cd` echo its destination, which
+# would corrupt every path resolved through a cd subshell below.
+unset CDPATH
+
 # Test: DoD prompt injection and enforcement wording
 # Verifies snapshot extraction includes DoD section with strict/advisory semantics.
 
@@ -22,13 +26,13 @@ require_cmd jq
 [ -x "$HOOK_SCRIPT" ] || fail "Hook script not found or not executable: $HOOK_SCRIPT"
 [ -f "$FIXTURE_TRANSCRIPT" ] || fail "Fixture transcript not found: $FIXTURE_TRANSCRIPT"
 
-TEMP_DIR="$(mktemp -d "/tmp/redbull-dod-prompt-XXXXXX")"
+TEMP_DIR="$(mktemp -d "/tmp/onward-dod-prompt-XXXXXX")"
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
 run_extraction() {
     local enforcement="$1"
     local settings_dir="$TEMP_DIR/$enforcement/.claude"
-    local settings_path="$settings_dir/redbull.local.md"
+    local settings_path="$settings_dir/onward.local.md"
     mkdir -p "$settings_dir"
 
     cat > "$settings_path" <<EOF
@@ -46,7 +50,7 @@ EOF
     hook_event=$(jq -n --arg path "$FIXTURE_TRANSCRIPT" '{"transcript_path": $path, "session_id": "snapshot-dod-test"}')
 
     echo "$hook_event" | \
-        REDBULL_SETTINGS_PATH="$settings_path" \
+        ONWARD_SETTINGS_PATH="$settings_path" \
         SNAPSHOT_EXTRACT_MODE=true \
         SNAPSHOT_EXTRACT_ALLOW=true \
         "$HOOK_SCRIPT"

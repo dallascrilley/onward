@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# A CDPATH inherited from the caller makes `cd` echo its destination, which
+# would corrupt every path resolved through a cd subshell below.
+unset CDPATH
+
 # Integration tests for WS-04: Handoff snapshot on approved stop
 # Tests that:
 # 1. Approved stop creates .claude/handoff.md
@@ -111,7 +115,7 @@ mkdir -p "$TEST_PROJECT"
 cd "$TEST_PROJECT"
 
 # Create decision dir for the hook
-mkdir -p "$TEST_HOME/.claude/redbull"
+mkdir -p "$TEST_HOME/.claude/onward"
 
 # Create transcript
 TRANSCRIPT_FILE="$TEST_PROJECT/transcript.ndjson"

@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# A CDPATH inherited from the caller makes `cd` echo its destination, which
+# would corrupt every path resolved through a cd subshell below.
+unset CDPATH
+
 # Test that the hook script switches to the state directory before running claude
 
 set -e
@@ -7,7 +11,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOOK_SCRIPT="$SCRIPT_DIR/../hooks/claude-judge-continuation.sh"
 # Respect the same env var the hook uses for state directory
-TEST_DIR="${REDBULL_STATE_DIR:-$HOME/.claude/redbull}"
+TEST_DIR="${ONWARD_STATE_DIR:-$HOME/.claude/onward}"
 
 # Colors for output
 RED='\033[0;31m'

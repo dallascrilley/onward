@@ -1,8 +1,12 @@
 #!/bin/bash
 
+# A CDPATH inherited from the caller makes `cd` echo its destination, which
+# would corrupt every path resolved through a cd subshell below.
+unset CDPATH
+
 # Claude Guardrails Plugin - PreToolUse Hook Script
 # Blocks dangerous commands before execution
-# Opt-in via REDBULL_GUARDRAILS_ENABLED=true
+# Opt-in via ONWARD_GUARDRAILS_ENABLED=true
 
 # === Source Library Modules ===
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -14,8 +18,8 @@ source "$SCRIPT_DIR/lib/config.sh"
 load_defaults
 
 # === Early exit: Disabled by default ===
-if [ "${REDBULL_GUARDRAILS_ENABLED:-false}" != "true" ]; then
-    emit_decision "approve" "Guardrails disabled (set REDBULL_GUARDRAILS_ENABLED=true to enable)"
+if [ "${ONWARD_GUARDRAILS_ENABLED:-false}" != "true" ]; then
+    emit_decision "approve" "Guardrails disabled (set ONWARD_GUARDRAILS_ENABLED=true to enable)"
     exit 0
 fi
 
