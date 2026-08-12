@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# A CDPATH inherited from the caller makes `cd` echo its destination, which
+# would corrupt every path resolved through a cd subshell below.
+unset CDPATH
+
 # Verify malformed hook event JSON fails closed with a clear approve decision.
 
 set -e

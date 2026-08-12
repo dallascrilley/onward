@@ -1,8 +1,12 @@
 #!/bin/bash
 
+# A CDPATH inherited from the caller makes `cd` echo its destination, which
+# would corrupt every path resolved through a cd subshell below.
+unset CDPATH
+
 # Claude PostToolUse Triage Plugin - PostToolUse Hook Script
 # Detects tool failures and suggests fixes
-# Opt-in via REDBULL_TRIAGE_ENABLED=true
+# Opt-in via ONWARD_TRIAGE_ENABLED=true
 
 # === Source Library Modules ===
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -14,8 +18,8 @@ source "$SCRIPT_DIR/lib/config.sh"
 load_defaults
 
 # === Early exit: Disabled by default ===
-if [ "${REDBULL_TRIAGE_ENABLED:-false}" != "true" ]; then
-    emit_decision "approve" "Triage disabled (set REDBULL_TRIAGE_ENABLED=true to enable)"
+if [ "${ONWARD_TRIAGE_ENABLED:-false}" != "true" ]; then
+    emit_decision "approve" "Triage disabled (set ONWARD_TRIAGE_ENABLED=true to enable)"
     exit 0
 fi
 

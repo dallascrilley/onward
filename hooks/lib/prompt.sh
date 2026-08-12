@@ -8,12 +8,12 @@
 MAX_RULES_SIZE=8192
 
 # Get the project rules file path
-# Search order: REDBULL_PROJECT_RULES_PATH > .redbull/rules.md > .claude/redbull-rules.md
+# Search order: ONWARD_PROJECT_RULES_PATH > .onward/rules.md > .claude/onward-rules.md
 _get_project_rules_file() {
     # Explicit path takes precedence
-    if [ -n "$REDBULL_PROJECT_RULES_PATH" ]; then
-        if [ -r "$REDBULL_PROJECT_RULES_PATH" ]; then
-            echo "$REDBULL_PROJECT_RULES_PATH"
+    if [ -n "$ONWARD_PROJECT_RULES_PATH" ]; then
+        if [ -r "$ONWARD_PROJECT_RULES_PATH" ]; then
+            echo "$ONWARD_PROJECT_RULES_PATH"
             return 0
         fi
         return 1  # Explicit path not readable
@@ -21,8 +21,8 @@ _get_project_rules_file() {
 
     # Check standard locations
     local locations=(
-        ".redbull/rules.md"
-        ".claude/redbull-rules.md"
+        ".onward/rules.md"
+        ".claude/onward-rules.md"
     )
 
     for loc in "${locations[@]}"; do

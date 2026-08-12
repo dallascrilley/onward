@@ -1,4 +1,8 @@
 #!/bin/bash
+
+# A CDPATH inherited from the caller makes `cd` echo its destination, which
+# would corrupt every path resolved through a cd subshell below.
+unset CDPATH
 # test-settings.sh - Test per-project settings functionality
 #
 # Tests:
@@ -26,7 +30,7 @@ test_disabled() {
     echo "🧩 Test: enabled=false approves stop"
 
     mkdir -p "$tmp/.claude"
-    cat > "$tmp/.claude/redbull.local.md" <<'EOF'
+    cat > "$tmp/.claude/onward.local.md" <<'EOF'
 ---
 enabled: false
 aggressiveness: high
@@ -42,7 +46,7 @@ EOF
     event="$(jq -n --arg tp "$tmp/transcript.ndjson" '{stop_hook_active:false, transcript_path:$tp, session_id:"test"}')"
 
     local out
-    out="$(echo "$event" | REDBULL_SETTINGS_PATH="$tmp/.claude/redbull.local.md" "$HOOK" 2>/dev/null)" || true
+    out="$(echo "$event" | ONWARD_SETTINGS_PATH="$tmp/.claude/onward.local.md" "$HOOK" 2>/dev/null)" || true
 
     local decision reason
     decision="$(printf '%s' "$out" | jq -r '.decision // "error"')"
@@ -62,7 +66,7 @@ test_settings_parsing() {
     echo "🧩 Test: settings_load parses correctly"
 
     mkdir -p "$tmp/.claude"
-    cat > "$tmp/.claude/redbull.local.md" <<'EOF'
+    cat > "$tmp/.claude/onward.local.md" <<'EOF'
 ---
 enabled: true
 aggressiveness: low
@@ -73,14 +77,14 @@ EOF
     # Source settings module and test
     source "$REPO_ROOT/hooks/lib/settings.sh"
 
-    REDBULL_SETTINGS_PATH="$tmp/.claude/redbull.local.md"
+    ONWARD_SETTINGS_PATH="$tmp/.claude/onward.local.md"
     settings_load
 
-    if [ "$REDBULL_ENABLED" = "true" ] && [ "$REDBULL_AGGRESSIVENESS" = "low" ]; then
-        echo -e "   ${GREEN}✓${NC} PASS (enabled=$REDBULL_ENABLED, aggressiveness=$REDBULL_AGGRESSIVENESS)"
+    if [ "$ONWARD_ENABLED" = "true" ] && [ "$ONWARD_AGGRESSIVENESS" = "low" ]; then
+        echo -e "   ${GREEN}✓${NC} PASS (enabled=$ONWARD_ENABLED, aggressiveness=$ONWARD_AGGRESSIVENESS)"
         ((pass_count++)) || true
     else
-        echo -e "   ${RED}✗${NC} FAIL (enabled=$REDBULL_ENABLED, aggressiveness=$REDBULL_AGGRESSIVENESS)"
+        echo -e "   ${RED}✗${NC} FAIL (enabled=$ONWARD_ENABLED, aggressiveness=$ONWARD_AGGRESSIVENESS)"
         ((fail_count++)) || true
     fi
 }
@@ -91,14 +95,14 @@ test_missing_file() {
 
     source "$REPO_ROOT/hooks/lib/settings.sh"
 
-    REDBULL_SETTINGS_PATH="$tmp/nonexistent.md"
+    ONWARD_SETTINGS_PATH="$tmp/nonexistent.md"
     settings_load
 
-    if [ "$REDBULL_ENABLED" = "true" ] && [ "$REDBULL_AGGRESSIVENESS" = "high" ]; then
-        echo -e "   ${GREEN}✓${NC} PASS (defaults: enabled=$REDBULL_ENABLED, aggressiveness=$REDBULL_AGGRESSIVENESS)"
+    if [ "$ONWARD_ENABLED" = "true" ] && [ "$ONWARD_AGGRESSIVENESS" = "high" ]; then
+        echo -e "   ${GREEN}✓${NC} PASS (defaults: enabled=$ONWARD_ENABLED, aggressiveness=$ONWARD_AGGRESSIVENESS)"
         ((pass_count++)) || true
     else
-        echo -e "   ${RED}✗${NC} FAIL (enabled=$REDBULL_ENABLED, aggressiveness=$REDBULL_AGGRESSIVENESS)"
+        echo -e "   ${RED}✗${NC} FAIL (enabled=$ONWARD_ENABLED, aggressiveness=$ONWARD_AGGRESSIVENESS)"
         ((fail_count++)) || true
     fi
 }
@@ -108,7 +112,7 @@ test_invalid_values() {
     echo "🧩 Test: invalid values use defaults"
 
     mkdir -p "$tmp/.claude"
-    cat > "$tmp/.claude/redbull.local.md" <<'EOF'
+    cat > "$tmp/.claude/onward.local.md" <<'EOF'
 ---
 enabled: invalid
 aggressiveness: extreme
@@ -117,14 +121,14 @@ EOF
 
     source "$REPO_ROOT/hooks/lib/settings.sh"
 
-    REDBULL_SETTINGS_PATH="$tmp/.claude/redbull.local.md"
+    ONWARD_SETTINGS_PATH="$tmp/.claude/onward.local.md"
     settings_load
 
-    if [ "$REDBULL_ENABLED" = "true" ] && [ "$REDBULL_AGGRESSIVENESS" = "high" ]; then
-        echo -e "   ${GREEN}✓${NC} PASS (defaults: enabled=$REDBULL_ENABLED, aggressiveness=$REDBULL_AGGRESSIVENESS)"
+    if [ "$ONWARD_ENABLED" = "true" ] && [ "$ONWARD_AGGRESSIVENESS" = "high" ]; then
+        echo -e "   ${GREEN}✓${NC} PASS (defaults: enabled=$ONWARD_ENABLED, aggressiveness=$ONWARD_AGGRESSIVENESS)"
         ((pass_count++)) || true
     else
-        echo -e "   ${RED}✗${NC} FAIL (enabled=$REDBULL_ENABLED, aggressiveness=$REDBULL_AGGRESSIVENESS)"
+        echo -e "   ${RED}✗${NC} FAIL (enabled=$ONWARD_ENABLED, aggressiveness=$ONWARD_AGGRESSIVENESS)"
         ((fail_count++)) || true
     fi
 }
@@ -140,13 +144,13 @@ test_aggressiveness_levels() {
 
     for level in low medium high; do
         mkdir -p "$tmp/.claude"
-        cat > "$tmp/.claude/redbull.local.md" <<EOF
+        cat > "$tmp/.claude/onward.local.md" <<EOF
 ---
 enabled: true
 aggressiveness: $level
 ---
 EOF
-        REDBULL_SETTINGS_PATH="$tmp/.claude/redbull.local.md"
+        ONWARD_SETTINGS_PATH="$tmp/.claude/onward.local.md"
         load_defaults
         settings_load
         settings_apply_aggressiveness

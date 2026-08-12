@@ -1,8 +1,12 @@
 #!/bin/bash
 
+# A CDPATH inherited from the caller makes `cd` echo its destination, which
+# would corrupt every path resolved through a cd subshell below.
+unset CDPATH
+
 # Claude SessionStart Brief Plugin - SessionStart Hook Script
 # Generates repository context brief at session start
-# Opt-in via REDBULL_SESSION_BRIEF_ENABLED=true
+# Opt-in via ONWARD_SESSION_BRIEF_ENABLED=true
 
 # === Source Library Modules ===
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -14,8 +18,8 @@ source "$SCRIPT_DIR/lib/config.sh"
 load_defaults
 
 # === Early exit: Disabled by default ===
-if [ "${REDBULL_SESSION_BRIEF_ENABLED:-false}" != "true" ]; then
-    emit_decision "approve" "Session brief disabled (set REDBULL_SESSION_BRIEF_ENABLED=true to enable)"
+if [ "${ONWARD_SESSION_BRIEF_ENABLED:-false}" != "true" ]; then
+    emit_decision "approve" "Session brief disabled (set ONWARD_SESSION_BRIEF_ENABLED=true to enable)"
     exit 0
 fi
 

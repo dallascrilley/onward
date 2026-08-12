@@ -121,6 +121,8 @@ persist_decision() {
             --argjson dod_rules_count "$dod_rules_count" \
             --arg stall_risk "$stall_risk" \
             --arg context_hash "$context_hash" \
+            --arg override_signal "$override_signal" \
+            --arg override_reason "$override_reason" \
             '{
                 timestamp: $ts,
                 session_id: $sid,

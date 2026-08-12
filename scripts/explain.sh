@@ -6,7 +6,7 @@
 set -euo pipefail
 
 # Configuration (allow env overrides for custom work dirs)
-DECISION_DIR="${DECISION_DIR:-${CLAUDE_WORK_DIR:-$HOME/.claude/redbull}}"
+DECISION_DIR="${DECISION_DIR:-${CLAUDE_WORK_DIR:-$HOME/.claude/onward}}"
 LAST_DECISION_FILE="${LAST_DECISION_FILE:-$DECISION_DIR/last_decision.json}"
 
 # Parse arguments
@@ -26,7 +26,7 @@ while [[ $# -gt 0 ]]; do
         -h|--help)
             echo "Usage: $(basename "$0") [OPTIONS]"
             echo ""
-            echo "Display the last judge decision from the redbull plugin."
+            echo "Display the last judge decision from the onward plugin."
             echo ""
             echo "Options:"
             echo "  -v, --verbose    Show full decision details including evaluation"
@@ -150,8 +150,12 @@ if [[ "$VERBOSE" == "true" ]]; then
             echo "v2 Metadata:"
 
             if [[ -n "$CONFIDENCE" && "$CONFIDENCE" != "null" ]]; then
-                # Format confidence as percentage
-                CONFIDENCE_PCT=$(echo "$CONFIDENCE * 100" | bc 2>/dev/null | cut -d. -f1)
+                # Format confidence as percentage. bc is optional, so fall back
+                # to the raw value rather than failing the whole command.
+                CONFIDENCE_PCT=""
+                if command -v bc >/dev/null 2>&1; then
+                    CONFIDENCE_PCT=$(echo "$CONFIDENCE * 100" | bc 2>/dev/null | cut -d. -f1 || echo "")
+                fi
                 if [[ -n "$CONFIDENCE_PCT" ]]; then
                     echo "  Confidence:      ${CONFIDENCE_PCT}% ($CONFIDENCE)"
                 else

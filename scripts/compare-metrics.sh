@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# A CDPATH inherited from the caller makes `cd` echo its destination, which
+# would corrupt every path resolved through a cd subshell below.
+unset CDPATH
+
 # Compare Metrics Across Branches/Runs
 # Usage: ./scripts/compare-metrics.sh [file1.json] [file2.json] ...
 #        ./scripts/compare-metrics.sh --latest N

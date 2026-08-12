@@ -1,20 +1,20 @@
 #!/bin/bash
-# debug.sh - Structured debug logging (opt-in via REDBULL_DEBUG=true)
+# debug.sh - Structured debug logging (opt-in via ONWARD_DEBUG=true)
 #
 # Logs metadata only (never transcript content or secrets) to stderr as JSON.
 
 # Debug configuration (disabled by default)
-REDBULL_DEBUG="${REDBULL_DEBUG:-false}"
+ONWARD_DEBUG="${ONWARD_DEBUG:-false}"
 
 # Verify jq is available for debug logging; silently disable if not
-if [ "$REDBULL_DEBUG" = "true" ] && ! command -v jq >/dev/null 2>&1; then
-    REDBULL_DEBUG="false"
+if [ "$ONWARD_DEBUG" = "true" ] && ! command -v jq >/dev/null 2>&1; then
+    ONWARD_DEBUG="false"
 fi
 
 # Debug log emitter - writes compact structured JSON to stderr only
 # Logs metadata only, never transcript content or secrets
 debug_log() {
-    [ "$REDBULL_DEBUG" = "true" ] || return 0
+    [ "$ONWARD_DEBUG" = "true" ] || return 0
     local event="$1"
     local ts
     ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")

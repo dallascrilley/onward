@@ -244,8 +244,10 @@ detect_heuristic_signal() {
 
     # missing_information - NO question mark required
     # Patterns: explicit need/provide/blocked phrasing with credentials/keys
-    # Use [[:<:]] and [[:>:]] for POSIX/BSD word boundaries (macOS compatible)
-    if grep -Eqi "([[:<:]]need[[:>:]].{0,15}(credential|api.?key|the password|the token|the secret)|[[:<:]]provide[[:>:]].{0,15}(credential|api.?key|password|token|secret)|can'?t proceed without.{0,10}(credential|key|password|token|secret)|[[:<:]]where[[:>:]][[:space:]]+(is|are)[[:space:]]+the.{0,10}(credential|key|password|token|secret))" <<< "$last_assistant"; then
+    # Word boundaries are spelled out as non-word characters. [[:<:]] and
+    # [[:>:]] are BSD-only, and GNU grep silently fails to match them, which
+    # made this signal a no-op on Linux.
+    if grep -Eqi "((^|[^[:alnum:]_])need[^[:alnum:]_].{0,15}(credential|api.?key|the password|the token|the secret)|(^|[^[:alnum:]_])provide[^[:alnum:]_].{0,15}(credential|api.?key|password|token|secret)|can'?t proceed without.{0,10}(credential|key|password|token|secret)|(^|[^[:alnum:]_])where[^[:alnum:]_][[:space:]]*(is|are)[[:space:]]+the.{0,10}(credential|key|password|token|secret))" <<< "$last_assistant"; then
         echo "missing_information"
         return 0
     fi

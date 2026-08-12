@@ -1,144 +1,165 @@
-# Redbull for Claude Code
+# Onward
 
-**Stops "Would you like me to continue?" interruptions.**
+Onward keeps Claude Code working through multi-step tasks instead of stopping to ask.
 
-Claude Code plugin that uses Claude to judge whether Claude should continue working.
+Claude Code stops when it thinks a turn is finished. On a long task that often lands mid-way: the schema is written but the migration is not, the endpoint exists but nothing validates its input. Onward hooks the Stop event, looks at what just happened, and either lets the session end or sends it back to work.
 
-## The Problem
+## What it looks like
 
-Claude Code interrupts multi-step work to ask permission even when next steps are obvious:
+A Stop event after "I added the POST /users route. Next I'll add request validation and the integration test.":
 
-- Work is incomplete
-- Clear next steps exist
-- You requested multi-step implementation
-- Claude stated what it will do next
+```console
+$ echo '{"session_id":"demo","transcript_path":"./transcript.ndjson","stop_hook_active":false}' \
+    | ./hooks/claude-judge-continuation.sh
+{
+  "decision": "block",
+  "reason": "Heuristic detected 'explicit_next_steps': work continues without judge"
+}
+```
 
-This breaks flow.
+A Stop event after "I sketched two designs for the validation layer. Which approach do you prefer?":
 
-## The Solution
+```console
+{
+  "decision": "approve",
+  "reason": "Heuristic detected 'asking_for_decision': user input needed, stopping without judge"
+}
+```
 
-When Claude tries to stop, a separate Claude instance evaluates the context and decides whether continuation makes sense.
+`decision: block` is what sends Claude back to work. `decision: approve` lets the session end.
 
-**Key principle:** If you can type "continue" and Claude knows what to do, the plugin continues automatically.
+## Install
 
-## Installation
-/plugin install redbull@dallas-plugin-marketplace
+Onward ships as a Claude Code plugin, and the repository is its own single-plugin marketplace, so it installs straight from the clone.
+
 ```bash
-/plugin install redbull@dallas-plugin-marketplace
+git clone https://github.com/dallascrilley/onward.git
+claude plugin marketplace add ./onward
+claude plugin install onward@onward
 ```
 
-**Prerequisites:** Claude Code and `jq` command-line tool.
+Restart Claude Code, then confirm the four hooks registered:
 
-## How It Works
-
-1. **Stop Hook Intercepts** - Catches stop attempts
-2. **Context Analysis** - Extracts recent conversation
-3. **Judge Evaluation** - Separate Claude instance evaluates continuation
-4. **Smart Decision** - Blocks inappropriate stops, allows legitimate ones
-
-## When It Continues
-
-- Work is incomplete
-- Obvious next steps exist (more files, functions, tests)
-- Claude mentioned follow-up work
-- Implementation has TODOs or placeholders
-- Multi-step process with remaining steps
-
-## When It Stops
-
-- Claude asks for user decisions
-- Claude requests clarification on requirements
-- Work is complete and documented
-- Claude explicitly needs user input
-
-## Use Cases
-
-**Multi-File Projects**
-```
-"Refactor codebase to TypeScript with strict types and comprehensive tests"
+```bash
+claude plugin details onward
 ```
 
-**API Development**
-```
-"Create REST API with authentication, CRUD operations, and test coverage"
-```
+```console
+onward 2.0.0
+  Keeps Claude Code working through multi-step tasks instead of stopping to ask
+  Source: onward@onward
 
-**Component Libraries**
-```
-"Build React components: Button, Input, Modal, Table with TypeScript and Storybook"
-```
-
-**Development Environment**
-```
-"Set up complete dev environment: Docker, CI/CD, linting, testing, deployment"
+Component inventory
+  Skills (0)
+  Agents (0)
+  Hooks (4)  Stop, PreToolUse, SessionStart, PostToolUse  (harness-only — no model context cost)
 ```
 
-## Features
+Requirements: Claude Code with the `claude` CLI on `PATH`, Bash, and [`jq`](https://jqlang.github.io/jq/). Nothing else is installed, and no packages are downloaded.
 
-- **Intelligent decisions** using Claude's reasoning
-- **Aggressive continuation** - continues unless clear stop signal
-- **Smart throttling** - max 3 continuations per 5 minutes
-- **Recursion prevention** - judge Claude can't trigger own hooks
-- **Graceful fallback** - allows stopping if evaluation fails
-- **Handoff snapshots** - writes `.claude/handoff.md` on approved stops with context for next session
-- **Failure triage** (opt-in) - writes `.claude/triage.md` with error analysis and fix suggestions
-- **Zero configuration** - works after installation
+To remove it: `claude plugin uninstall onward` then `claude plugin marketplace remove onward`.
 
-## Definition of Done (DoD)
+## How a decision gets made
 
-You can define a project-specific Definition of Done in `.claude/redbull.local.md`.  
-The judge will consider these criteria before approving a stop.
+Every Stop event walks the same ladder, and the first rung that matches wins:
 
-```yaml
+1. **Ignore patterns.** Literal substrings you list in `.onward/ignore.txt` end the session immediately.
+2. **Permission language.** "Should I continue?" means keep going. "Which approach do you prefer?" means stop and ask.
+3. **Heuristic signals.** Stated next steps, open TODOs, and explicit completion phrases resolve without any model call. Roughly 63% of decisions in the eval suite land here.
+4. **The judge.** Everything left goes to a separate Claude Haiku instance with a JSON schema, which returns a continue-or-stop verdict with a confidence score.
+
+Two guards sit around that ladder. Throttling caps continuations at 3 per 5 minutes per session, so a disagreement cannot loop forever. Stall detection compares the current context against recent decisions and forces a stop when the same state keeps producing low-confidence continuations.
+
+The judge runs with `CLAUDE_HOOK_JUDGE_MODE=true`, and the hook approves the stop immediately when it sees that variable. That is what keeps the judge from triggering its own hooks.
+
+## Configuration
+
+Everything has a working default. Per-project settings live in `.claude/onward.local.md` as YAML frontmatter:
+
+```markdown
 ---
 enabled: true
-dod_enforcement: advisory   # advisory|strict
+aggressiveness: high
+dod_enforcement: advisory
 definition_of_done:
-  - "All tests pass"
-  - "No TODO comments remain"
-  - "CHANGELOG.md updated"
+  - Tests pass
+  - No debug logging left behind
 ---
 ```
 
-**Modes**
-- **advisory**: consider DoD; if criteria appear unmet, lean toward continuing
-- **strict**: only stop when DoD is met with evidence or a blocker requires user input
+`aggressiveness` (`low`, `medium`, `high`) controls how much transcript context the judge sees. `definition_of_done` rules are added to the judge prompt; `dod_enforcement: strict` tells the judge to treat them as blocking.
 
-## Opt-in Features
+Environment variables override the defaults for a single run:
 
-Some features require explicit activation via environment variables:
+| Variable | Default | Purpose |
+|---|---|---|
+| `ONWARD_ENABLED` | `true` | Set `false` to approve every stop |
+| `ONWARD_DRY_RUN` | `false` | Decide as usual, then always approve the stop and report what it would have done |
+| `ONWARD_JUDGE_MODEL` | `haiku` | `haiku`, `sonnet`, or `opus` |
+| `ONWARD_THROTTLE_LIMIT` | `3` | Continuations allowed per window |
+| `ONWARD_THROTTLE_WINDOW_SECONDS` | `300` | Length of the throttle window |
+| `ONWARD_TRANSCRIPT_CONTEXT_LINES` | `10` | Transcript entries sent to the judge |
+| `ONWARD_STATE_DIR` | `~/.claude/onward` | Where decisions and logs are written |
+| `ONWARD_LOG_DECISIONS` | `true` | Append every decision to `decision_log.jsonl` |
+| `ONWARD_DEBUG` | `false` | Structured JSON trace on stderr |
 
-**Failure Triage** (`REDBULL_TRIAGE_ENABLED=true`)
-- Detects non-zero exit codes from tool executions
-- Writes `.claude/triage.md` with error analysis and suggested fixes
-- Provides heuristic suggestions for common errors (permission denied, module not found, etc.)
+Start with `ONWARD_DRY_RUN=true` if you want to watch its decisions before it changes any of them.
 
-## Technical Details
+## Inspecting decisions
 
-- **Model:** Claude Haiku (fast, cost-effective)
-- **Context:** Last 10 transcript entries
-- **Throttling:** 3 continuations per 5-minute window
-- **Performance:** Minimal latency on stop decisions only
+```bash
+./scripts/explain.sh              # why the last stop was allowed or blocked
+./scripts/explain.sh --verbose    # include the judge's reasoning and confidence
+./scripts/logs.sh --lines 20      # the last 20 decisions
+./scripts/logs.sh --stats         # continue/stop counts across the log
+```
 
-## Troubleshooting
+```console
+$ ./scripts/explain.sh
+Last Decision: STOP (approved stop)
+Timestamp:     2026-08-12T07:09:30Z
+Session:       demo
 
-**Hook not triggering:**
-- Check installation: `/plugin list`
-- Restart Claude Code
-- Verify hook appears in Claude Code hooks UI
+Reasoning:
+  Heuristic detected 'asking_for_decision': user input needed, stopping
+  without judge
+```
 
-**Unexpected behavior:**
-- Review hook reasoning in Claude Code logs
-- Check throttle files: `/tmp/.claude-continue-throttle-*`
-- Verify `jq` is installed
+## The other three hooks
+
+The Stop hook is the product. Three smaller hooks ship alongside it and are **off unless you turn them on**:
+
+- `ONWARD_GUARDRAILS_ENABLED=true` blocks six destructive command shapes before they run (`rm -rf /`, `rm -rf ~`, bare `git reset --hard`, `git clean -fdx`, curl-piped-to-shell, `chmod 777`).
+- `ONWARD_SESSION_BRIEF_ENABLED=true` writes `.claude/session-brief.md` with repository context at session start.
+- `ONWARD_TRIAGE_ENABLED=true` writes `.claude/triage.md` with an error summary after a failed tool call.
+
+On an approved stop, the Stop hook also writes `.claude/handoff.md`: session id, stop reason, recent context, and git status for whoever picks the work up next.
+
+## Tests
+
+```bash
+./scripts/test.sh          # 13 hook tests, then 130 eval scenarios (about 3 minutes)
+./scripts/test.sh --fast   # hook tests only
+```
+
+The eval suite replays 130 recorded transcripts through the real hook with a stubbed `claude` binary and asserts both the decision and the path it took to get there. It needs no API access and no network. A test run uses a throwaway `HOME`, so it never touches your own plugin state.
+
+## Honest boundaries
+
+- The judge is a Claude Haiku call. It is fast and cheap, and it is still a language model making a judgment call. It will be wrong sometimes, which is why throttling and stall detection exist.
+- The 130 eval scenarios are transcripts I wrote to cover decision categories. They are not sampled from real sessions, and passing them is not evidence of a hit rate in your repo.
+- Bash and `jq` only, developed and tested on macOS. It should work on Linux; I have not run it there.
+- Prefilter phrases are English. Non-English transcripts fall through to the judge, which is slower but still correct.
+- No telemetry. Decisions are written to `~/.claude/onward` on your machine and nowhere else.
+
+## Architecture
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the hook flow, the library layout, and the decision record format.
 
 ## Contributing
 
-1. Fork repository
-2. Create feature branch
-3. Test changes
-4. Submit pull request
+See [CONTRIBUTING.md](CONTRIBUTING.md). Security reports go through [SECURITY.md](SECURITY.md).
 
 ## License
 
-MIT License - see [LICENSE](LICENSE)
+MIT. See [LICENSE](LICENSE).
