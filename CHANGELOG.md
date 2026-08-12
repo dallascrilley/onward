@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Per-project settings: `.claude/redbull.local.md` is now `.claude/onward.local.md`.
   - Ignore patterns: `.redbull/ignore.txt` and `.claude/redbull-ignore.txt` are now `.onward/ignore.txt` and `.claude/onward-ignore.txt`.
   - Project rules: `.redbull/rules.md` and `.claude/redbull-rules.md` are now `.onward/rules.md` and `.claude/onward-rules.md`.
+- **Throttle state moved out of `/tmp`.** Continuation counts were kept in `/tmp/.claude-continue-throttle-<hash>`, which is shared by every user on the machine and survives across sessions that reuse a session id. They now live in `$ONWARD_STATE_DIR/throttle/`, so all plugin state is in one place and `ONWARD_STATE_DIR` genuinely isolates a run. Any leftover `/tmp/.claude-continue-throttle-*` files are inert and safe to delete.
 - **Install is now direct from this repository.** The plugin previously installed from a separate private marketplace. The repository now carries its own `.claude-plugin/marketplace.json`, so `claude plugin marketplace add ./onward` followed by `claude plugin install onward@onward` is the whole install.
 
 ### Fixed
