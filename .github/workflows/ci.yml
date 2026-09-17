@@ -13,11 +13,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
-
-        # macOS bills at 10x Linux and is this workflow's only macOS leg: keep
-        # it on pushes to main, drop it from pull requests.
-    if: ${{ matrix.os != 'macos-latest' || github.event_name != 'pull_request' }}
+        # macOS bills at 10x Linux and is this workflow's only macOS leg, so it
+        # runs on default-branch pushes only. The choice has to be made in the
+        # matrix: the `matrix` context is NOT available in jobs.<job_id>.if,
+        # where an always-false condition would skip the whole job instead of
+        # dropping one leg.
+        os: ${{ (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) && fromJSON('["ubuntu-latest","macos-latest"]') || fromJSON('["ubuntu-latest"]') }}
     steps:
       - uses: actions/checkout@v4
 
