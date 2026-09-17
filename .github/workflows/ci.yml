@@ -14,6 +14,10 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
+
+        # macOS bills at 10x Linux and is this workflow's only macOS leg: keep
+        # it on pushes to main, drop it from pull requests.
+    if: ${{ matrix.os != 'macos-latest' || github.event_name != 'pull_request' }}
     steps:
       - uses: actions/checkout@v4
 
